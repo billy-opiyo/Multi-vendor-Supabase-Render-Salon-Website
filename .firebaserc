@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "services-website-billydev"
+  },
+  "targets": {
+    "services-website-billydev": {
+      "hosting": {
+        "main-site": [
+          "royal-braids-billydev"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

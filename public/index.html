@@ -1,0 +1,2277 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<script>
+			;(function () {
+				try {
+					var theme = localStorage.getItem("theme")
+					var isLight = theme === "light"
+					document.documentElement.classList.toggle("light-mode", isLight)
+					document.documentElement.style.colorScheme = isLight
+						? "light"
+						: "dark"
+				} catch (error) {
+					document.documentElement.style.colorScheme = "dark"
+				}
+			})()
+		</script>
+		<script>
+			// Force localhost when opening via 127.0.0.1 to avoid Firebase Auth handler mismatches.
+			if (window.location.hostname === "127.0.0.1") {
+				const target = `${window.location.protocol}//localhost${window.location.port ? `:${window.location.port}` : ""}${window.location.pathname}${window.location.search}${window.location.hash}`
+				window.location.replace(target)
+			}
+		</script>
+		<meta
+			name="description"
+			content="Premium African Hair Braiding & Salon in Nairobi offering luxury braiding, and hair  treatments. Book online today."
+		/>
+		<meta
+			name="keywords"
+			content="Saloonist Nairobi, Salon Westlands, Braids Twists Kenya,Royal Braids"
+		/>
+		<meta
+			property="og:title"
+			content="Royal Braids | Premium African Hair Braiding & Salon"
+		/>
+		<meta property="og:image" content="URL_TO_YOUR_HERO_IMAGE" />
+
+		<title>Royal Braids | Premium African Hair Braiding Salon</title>
+
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
+		<link rel="preconnect" href="https://www.gstatic.com" crossorigin />
+		<link
+			rel="preload"
+			as="image"
+			href="IMG/1000_F_595420115_RZi6MAsq90qVRMfFz37ZKBianocAltUu.jpg"
+			fetchpriority="high"
+		/>
+		<link
+			href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700;800&display=swap"
+			rel="stylesheet"
+		/>
+		<link
+			rel="stylesheet"
+			href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+		/>
+		<link rel="stylesheet" href="CSS/style.css" />
+		<link rel="icon" type="image/x-icon" href="IMG/Royal Braids logo.png" />
+		<script src="JS/splash.js?v=20260602-splash-controller" defer></script>
+		<script src="client-config.js" defer></script>
+		<script src="JS/apply-client-config.js" defer></script>
+		<script src="JS/theme-preset-preview.js" defer></script>
+		<script
+			src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"
+			defer
+		></script>
+		<script
+			src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"
+			defer
+		></script>
+		<script
+			src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"
+			defer
+		></script>
+		<script
+			src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"
+			defer
+		></script>
+		<script
+			src="JS/script.js?v=20260531-waitlist-joined-feedback-mobile-time-picker-fix"
+			defer
+		></script>
+		<script src="JS/register-sw.js" defer></script>
+	</head>
+	<body class="splash-active">
+		<!-- ========== SPLASH SCREEN ========== -->
+		<div
+			class="splash-screen"
+			id="siteSplash"
+			data-splash-duration="10000"
+			role="status"
+			aria-live="polite"
+			aria-label="Royal Braids website loading"
+		>
+			<div class="splash-bg" aria-hidden="true">
+				<img
+					src="IMG/1000_F_595420115_RZi6MAsq90qVRMfFz37ZKBianocAltUu.jpg"
+					alt=""
+					loading="eager"
+					decoding="async"
+					fetchpriority="high"
+				/>
+			</div>
+			<div class="splash-content">
+				<p class="splash-kicker">Welcome to</p>
+				<h1 class="splash-title" aria-label="Royal Braids">
+					<svg
+						class="splash-handwriting"
+						viewBox="0 0 940 230"
+						preserveAspectRatio="xMidYMid meet"
+						aria-hidden="true"
+					>
+						<defs>
+							<linearGradient id="splashTitleGradient" x1="0" x2="1" y1="0" y2="0">
+								<stop offset="0%" stop-color="#f8e5b4" />
+								<stop offset="42%" stop-color="#e8c27a" />
+								<stop offset="72%" stop-color="#c8963e" />
+								<stop offset="100%" stop-color="#fff3cf" />
+							</linearGradient>
+						</defs>
+						<text class="splash-handwriting-shadow" x="470" y="128" text-anchor="middle">
+							Royal Braids
+						</text>
+						<text class="splash-handwriting-fill" x="470" y="128" text-anchor="middle">
+							Royal Braids
+						</text>
+						<text class="splash-handwriting-strokes" x="470" y="128" text-anchor="middle"><tspan class="splash-handwriting-letter" style="--letter-index: 0">R</tspan><tspan class="splash-handwriting-letter" style="--letter-index: 1">o</tspan><tspan class="splash-handwriting-letter" style="--letter-index: 2">y</tspan><tspan class="splash-handwriting-letter" style="--letter-index: 3">a</tspan><tspan class="splash-handwriting-letter" style="--letter-index: 4">l</tspan><tspan class="splash-handwriting-letter" style="--letter-index: 5" dx="24">B</tspan><tspan class="splash-handwriting-letter" style="--letter-index: 6">r</tspan><tspan class="splash-handwriting-letter" style="--letter-index: 7">a</tspan><tspan class="splash-handwriting-letter" style="--letter-index: 8">i</tspan><tspan class="splash-handwriting-letter" style="--letter-index: 9">d</tspan><tspan class="splash-handwriting-letter" style="--letter-index: 10">s</tspan></text>
+					</svg>
+				</h1>
+				<div
+					class="splash-progress"
+					role="progressbar"
+					aria-label="Loading Royal Braids"
+					aria-valuemin="1"
+					aria-valuemax="100"
+					aria-valuenow="1"
+				>
+					<div class="splash-progress-header">
+						<span class="splash-progress-label">Loading</span>
+						<span class="splash-progress-percent" id="splashProgressPercent">1%</span>
+					</div>
+					<div class="splash-progress-track">
+						<div class="splash-progress-fill" id="splashProgressFill"></div>
+					</div>
+				</div>
+				<p class="splash-loading-text" id="splashLoadingText">
+					Preparing Your Luxury Salon Experience<span
+						class="splash-loading-dots"
+						aria-hidden="true"
+						><span>.</span><span>.</span><span>.</span></span
+					>
+				</p>
+			</div>
+		</div>
+
+		<div class="site-shell" id="siteMain">
+			<!-- ========== HEADER ========== -->
+		<header class="header" id="header">
+			<div class="container header-inner">
+				<a href="#home" class="logo">
+					<span
+						class="logo-icon logo-cube"
+						aria-label="Royal Braids rotating logo"
+						data-client-attr="aria-label:brand.logoAlt"
+					>
+						<span class="logo-cube-track" id="logoCubeTrack">
+							<img
+								id="logoCubeImage"
+								src="IMG/logo.png"
+								alt="Royal Braids rotating logo"
+								loading="eager"
+								decoding="async"
+								width="72"
+								height="72"
+								data-client-attr="src:brand.logoSrc; alt:brand.logoAlt"
+							/>
+						</span>
+					</span>
+					<span class="logo-text" data-client-html="brand.shortNameHtml"
+						>ROYAL<br />BRAIDS</span
+					>
+				</a>
+
+				<br />
+				<nav class="nav" id="nav">
+					<a href="#home" class="active">Home</a>
+					<a href="#gallery">Gallery</a>
+					<a href="#services">Services</a>
+					<a href="#booking">Booking</a>
+					<a href="#clientDashboard" id="navDashboardLink" class="hidden"
+						>Dashboard</a
+					>
+					<a href="#testimonials">Reviews</a>
+					<a href="#blog">Blog</a>
+					<a href="#visit">Visit Us</a>
+					<a href="#contact">Contact</a>
+				</nav>
+
+				<div class="header-actions">
+					<div
+						class="dark-mode-toggle"
+						id="darkModeToggle"
+						role="button"
+						aria-label="Toggle dark mode"
+						tabindex="0"
+					>
+						<svg class="sun" viewBox="0 0 24 24">
+							<path d="M12 2l3 7h7l-5.5 4 2 7-6.5-4-6.5 4 2-7L2 9h7z" />
+						</svg>
+						<svg class="moon" viewBox="0 0 24 24">
+							<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+						</svg>
+					</div>
+					<a href="#booking" class="book-btn">Book Now</a>
+					<button class="auth-btn" id="openAuthModalBtn" type="button">
+						Log In
+					</button>
+					<div class="auth-profile hidden" id="authProfileMenu">
+						<button
+							type="button"
+							class="auth-profile-trigger"
+							id="authProfileTrigger"
+							aria-label="Open profile menu"
+							aria-expanded="false"
+						>
+							<span id="authProfileInitial">R</span>
+						</button>
+						<div class="auth-profile-dropdown" id="authProfileDropdown">
+							<p id="authProfileName">Welcome back</p>
+							<a href="#clientDashboard">My Dashboard</a>
+							<button type="button" id="logoutBtn">Log Out</button>
+						</div>
+					</div>
+					<button class="nav-toggle" id="navToggle" aria-label="Menu">
+						<span></span><span></span><span></span>
+					</button>
+				</div>
+			</div>
+		</header>
+
+		<!-- ========== HERO ========== -->
+		<section class="hero" id="home">
+			<div class="hero-bg">
+				<img
+					src="IMG/1000_F_595420115_RZi6MAsq90qVRMfFz37ZKBianocAltUu.jpg"
+					alt="African Hair Braiding Salon"
+					loading="eager"
+					decoding="async"
+					fetchpriority="high"
+					data-client-attr="src:brand.heroImage; alt:brand.heroImageAlt"
+				/>
+			</div>
+			<div class="container">
+				<div class="hero-content">
+					<div class="hero-text animate-on-scroll">
+						<div class="section-subtitle" data-client-text="brand.heroSubtitle">
+							Premium African Hair Braiding & Beauty
+						</div>
+						<h1 data-client-html="brand.heroTitleHtml">
+							Celebrate Your Crown with <span>Beautiful Braids</span>
+						</h1>
+						<p data-client-text="brand.heroDescription">
+							From signature braids, hair services and flawless twists to
+							glowing beauty spa rituals, precision nails, radiant makeup,
+							barber grooming, eyebrows & lash enhancements, and bridal-ready
+							glam—step into a full beauty experience crafted to make you shine.
+						</p>
+						<div class="hero-buttons">
+							<a href="#booking" class="btn btn-primary btn-lg">
+								<svg
+									width="20"
+									height="20"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+									<line x1="16" y1="2" x2="16" y2="6"></line>
+									<line x1="8" y1="2" x2="8" y2="6"></line>
+									<line x1="3" y1="10" x2="21" y2="10"></line>
+								</svg>
+								Book Appointment
+							</a>
+							<a href="#services" class="btn btn-outline btn-lg">
+								<svg
+									width="20"
+									height="20"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<circle cx="12" cy="12" r="10"></circle>
+									<polygon points="10 8 16 12 10 16 10 8"></polygon>
+								</svg>
+								Explore Services
+							</a>
+						</div>
+						<div class="hero-info">
+							<div class="hero-info-item">
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<path
+										d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"
+									></path>
+								</svg>
+								<span data-client-text="contact.phonePrimary"
+									>+254 700 123 456</span
+								>
+							</div>
+							<div class="hero-info-item">
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<path
+										d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
+									></path>
+									<polyline points="22,6 12,13 2,6"></polyline>
+								</svg>
+								<span data-client-text="contact.emailPrimary"
+									>info@royalbraids.ke</span
+								>
+							</div>
+							<div class="hero-info-item">
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"></path>
+									<circle cx="12" cy="10" r="3"></circle>
+								</svg>
+								<span data-client-text="contact.locationShort"
+									>Westlands, Nairobi</span
+								>
+							</div>
+						</div>
+					</div>
+
+					<div class="hero-image animate-on-scroll delay-2">
+						<div class="hero-image-main">
+							<img
+								src="IMG/4-african-knotless-braids-with-beads.webp"
+								alt="African Braids"
+								loading="eager"
+								decoding="async"
+								fetchpriority="high"
+							/>
+						</div>
+						<div class="hero-badge">
+							<div class="number">10+</div>
+							<div class="text">Years Experience</div>
+						</div>
+						<div class="hero-float">
+							<span>⭐ 4.9/5</span>
+							<p>500+ Reviews</p>
+						</div>
+					</div>
+				</div>
+
+				<div
+					class="hero-stats animate-on-scroll delay-3"
+					style="margin-top: 60px"
+				>
+					<div class="hero-stat">
+						<div class="number" data-count="500">0</div>
+						<div class="label">Happy Clients</div>
+					</div>
+					<div class="hero-stat">
+						<div class="number" data-count="5">0</div>
+						<div class="label">Expert Braiders</div>
+					</div>
+					<div class="hero-stat">
+						<div class="number" data-count="50">0</div>
+						<div class="label">Services Rendered</div>
+					</div>
+					<div class="hero-stat">
+						<div class="number" data-count="98">0</div>
+						<div class="label">% Satisfaction</div>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- ========== GALLERY ========== -->
+		<section class="gallery" id="gallery">
+			<div class="container">
+				<div class="gallery-header main-section-heading animate-on-scroll">
+					<div class="section-subtitle">Our Work</div>
+					<h2 class="section-title">Services Gallery</h2>
+				</div>
+				<p class="section-desc section-heading-copy">
+					Discover our stunning transformations across braids, hair services,
+					spa glow-ups, nail artistry, makeup finishes, barber cuts, eyebrows &
+					lash details, and bridal/event beauty moments—beautifully updated in
+					realtime.
+				</p>
+
+				<div
+					class="gallery-filters animate-on-scroll delay-1"
+					id="galleryFilters"
+				>
+					<div class="gallery-sort-row">
+						<div class="gallery-service-filter-wrap" id="galleryServiceFilters">
+							<button
+								class="gallery-filter-chip active"
+								data-filter-group="service"
+								data-filter-value="all"
+							>
+								All
+							</button>
+							<button
+								class="gallery-filter-chip"
+								data-filter-group="service"
+								data-filter-value="braids-services"
+							>
+								Braids
+							</button>
+							<button
+								class="gallery-filter-chip"
+								data-filter-group="service"
+								data-filter-value="hair-services"
+							>
+								Hair
+							</button>
+							<button
+								class="gallery-filter-chip"
+								data-filter-group="service"
+								data-filter-value="beauty-spa-services"
+							>
+								Beauty Spa
+							</button>
+							<button
+								class="gallery-filter-chip"
+								data-filter-group="service"
+								data-filter-value="nail-services"
+							>
+								Nails
+							</button>
+							<button
+								class="gallery-filter-chip"
+								data-filter-group="service"
+								data-filter-value="makeup-services"
+							>
+								Makeup
+							</button>
+							<button
+								class="gallery-filter-chip"
+								data-filter-group="service"
+								data-filter-value="barber-services"
+							>
+								Barber
+							</button>
+							<button
+								class="gallery-filter-chip"
+								data-filter-group="service"
+								data-filter-value="eyebrow-lash-services"
+							>
+								Eyebrows &amp; Lash
+							</button>
+							<button
+								class="gallery-filter-chip"
+								data-filter-group="service"
+								data-filter-value="bridal-event-packages"
+							>
+								Bridal / Event Packages
+							</button>
+						</div>
+						<div class="gallery-sort-control">
+							<label class="gallery-sort-label" for="gallerySortSelect"
+								>Sort By:</label
+							>
+							<select id="gallerySortSelect" class="gallery-sort-select">
+								<option value="recommended">Recommended</option>
+								<option value="name-asc">Name A-Z</option>
+								<option value="name-desc">Name Z-A</option>
+								<option value="date-modified-desc">
+									Date Modified (Newest)
+								</option>
+								<option value="date-modified-asc">
+									Date Modified (Oldest)
+								</option>
+								<option value="date-created-desc">Date Created (Newest)</option>
+								<option value="date-created-asc">Date Created (Oldest)</option>
+								<option value="new">New</option>
+								<option value="old">Old</option>
+							</select>
+						</div>
+					</div>
+
+					<div class="gallery-filter-group" id="galleryLengthFilters">
+						<button
+							class="gallery-filter-chip active"
+							data-filter-group="length"
+							data-filter-value="all"
+						>
+							All Lengths
+						</button>
+					</div>
+					<div class="gallery-filter-group" id="gallerySizeFilters">
+						<button
+							class="gallery-filter-chip active"
+							data-filter-group="size"
+							data-filter-value="all"
+						>
+							All Sizes
+						</button>
+					</div>
+					<div class="gallery-filter-group" id="galleryStyleTypeFilters">
+						<button
+							class="gallery-filter-chip active"
+							data-filter-group="styleType"
+							data-filter-value="all"
+						>
+							All Style Types
+						</button>
+					</div>
+					<div class="gallery-braids-only-note" id="galleryBraidsOnlyNote">
+						Braids-only filters (Length, Size, Style Type)
+					</div>
+				</div>
+
+				<div class="gallery-featured-wrap animate-on-scroll delay-1">
+					<div class="gallery-featured-block" id="trendingBraidsBlock">
+						<h3 id="trendingStylesHeading">🔥 Trending Braids</h3>
+						<div class="gallery-featured-list" id="trendingBraidsList"></div>
+					</div>
+					<div class="gallery-featured-block" id="mostBookedStylesBlock">
+						<h3 id="mostBookedStylesHeading">⭐ Most Booked Braids</h3>
+						<div class="gallery-featured-list" id="mostBookedStylesList"></div>
+					</div>
+				</div>
+
+				<div class="gallery-grid animate-on-scroll delay-1" id="galleryGrid">
+					<!-- Gallery items generated by JS -->
+				</div>
+				<div class="gallery-actions" id="galleryActions">
+					<button class="btn btn-primary" id="viewAllGallery">
+						View All Gallery
+					</button>
+				</div>
+				<div class="gallery-empty" id="galleryEmptyState" style="display: none">
+					No styles match your current filters.
+				</div>
+			</div>
+		</section>
+
+		<!-- ========== SERVICES ========== -->
+		<section class="services" id="services">
+			<div class="container">
+				<div class="services-header main-section-heading animate-on-scroll">
+					<div class="section-subtitle">What We Offer</div>
+					<h2 class="section-title">Our Full Salon Services</h2>
+				</div>
+				<p class="section-desc section-heading-copy">
+					Explore our complete salon experience, from Braids and Hair services,
+					Nails to Spa, Makeup, Barbering, Massage & Wellness, Eyebrows &
+					Lashes, and Bridal packages.
+				</p>
+
+				<div class="services-tabs animate-on-scroll delay-1">
+					<button class="services-tab active" data-filter="all">
+						All Services
+					</button>
+					<button class="services-tab" data-filter="braids-services">
+						Braids Services
+					</button>
+					<button class="services-tab" data-filter="hair-services">
+						Hair Services
+					</button>
+					<button class="services-tab" data-filter="beauty-spa-services">
+						Beauty Spa Services
+					</button>
+					<button class="services-tab" data-filter="nail-services">
+						Nail Services
+					</button>
+					<button class="services-tab" data-filter="makeup-services">
+						Makeup Services
+					</button>
+					<button class="services-tab" data-filter="barber-services">
+						Barber Services
+					</button>
+					<button class="services-tab" data-filter="massage-wellness">
+						Massage & Wellness
+					</button>
+					<button class="services-tab" data-filter="eyebrow-lash-services">
+						Eyebrow & Lash Services
+					</button>
+					<button class="services-tab" data-filter="bridal-event-packages">
+						Bridal / Event Packages
+					</button>
+				</div>
+
+				<div class="services-grid" id="servicesGrid">
+					<!-- Service Cards generated by JS -->
+				</div>
+			</div>
+		</section>
+
+		<!-- ========== BOOKING ========== -->
+		<section class="booking" id="booking">
+			<div class="container">
+				<div class="booking-inner">
+					<div class="booking-info animate-on-scroll">
+						<div class="booking-section-heading main-section-heading">
+							<div class="section-subtitle">Easy Online Booking</div>
+							<h2 class="section-title">Book Your Service Session</h2>
+						</div>
+						<p class="section-desc section-heading-copy">
+							Secure your ideal appointment in minutes—whether you’re coming for
+							premium braids, hair styling, spa care, nails, makeup, barber
+							services, lashes, wellness, or a complete bridal/event package.
+						</p>
+						<div class="booking-benefits">
+							<div class="benefit-item">
+								<div class="benefit-icon">
+									<svg
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke-width="2"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+									>
+										<circle cx="12" cy="12" r="10"></circle>
+										<polyline points="12 6 12 12 16 14"></polyline>
+									</svg>
+								</div>
+								<div>
+									<h4 style="font-size: 1rem">Quick & Easy Scheduling</h4>
+									<p style="color: var(--text-secondary); font-size: 0.9rem">
+										Book in under 30 seconds
+									</p>
+								</div>
+							</div>
+							<div class="benefit-item">
+								<div class="benefit-icon">
+									<svg
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke-width="2"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+									>
+										<path
+											d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"
+										></path>
+									</svg>
+								</div>
+								<div>
+									<h4 style="font-size: 1rem">Whatsapp & Email Reminders</h4>
+									<p style="color: var(--text-secondary); font-size: 0.9rem">
+										Never miss your appointment
+									</p>
+								</div>
+							</div>
+							<div class="benefit-item">
+								<div class="benefit-icon">
+									<svg
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke-width="2"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+									>
+										<path
+											d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
+										></path>
+									</svg>
+								</div>
+								<div>
+									<h4 style="font-size: 1rem">Secure & Private</h4>
+									<p style="color: var(--text-secondary); font-size: 0.9rem">
+										Your data is always protected
+									</p>
+								</div>
+							</div>
+						</div>
+						<div
+							style="
+								background: var(--bg-card);
+								padding: 20px;
+								border-radius: var(--radius);
+								border: 1px solid var(--border);
+							"
+						>
+							<h4 style="font-size: 1rem; margin-bottom: 10px">
+								📞 Need Help Booking?
+							</h4>
+							<p style="color: var(--text-secondary); font-size: 0.9rem">
+								Call us directly at
+								<a
+									href="tel:+254700123456"
+									style="color: var(--primary); font-weight: 600"
+									>+254 700 123 456</a
+								>
+								and our team will assist you.
+							</p>
+						</div>
+					</div>
+
+					<div class="animate-on-scroll delay-2">
+						<form class="booking-form" id="bookingForm">
+							<h3>Schedule Appointment</h3>
+							<div class="form-message" id="bookingMessage"></div>
+							<div class="form-grid">
+								<div class="form-group">
+									<label>First Name *</label>
+									<input
+										type="text"
+										name="firstName"
+										placeholder="Amina"
+										required
+									/>
+								</div>
+								<div class="form-group">
+									<label>Last Name *</label>
+									<input
+										type="text"
+										name="lastName"
+										placeholder="Ochieng"
+										required
+									/>
+								</div>
+								<div class="form-group">
+									<label>Email *</label>
+									<input
+										type="email"
+										name="email"
+										placeholder="amina@email.com"
+										required
+									/>
+								</div>
+								<div class="form-group">
+									<label>Phone *</label>
+									<input
+										type="tel"
+										name="phone"
+										placeholder="+254 700 123 456"
+										required
+									/>
+								</div>
+								<div class="form-group">
+									<label>Service *</label>
+									<select name="service" required id="serviceSelect">
+										<option value="">Select Service</option>
+									</select>
+								</div>
+								<div class="form-group full hidden" id="customServiceGroup">
+									<label for="customServiceInput">Type Your Service *</label>
+									<input
+										type="text"
+										id="customServiceInput"
+										name="customService"
+										placeholder="e.g. Tribal braids with curls"
+									/>
+									<small
+										style="
+											color: var(--text-secondary);
+											display: block;
+											margin-top: 6px;
+										"
+									>
+										Tip: include style + size/length (e.g., "Boho knotless,
+										medium, waist length").
+									</small>
+								</div>
+								<div class="form-group">
+									<label>Preferred Braider</label>
+									<select name="stylist" id="stylistSelect">
+										<option value="">Any Available</option>
+										<option value="fatima">
+											Fatima Hassan - Master Braider
+										</option>
+										<option value="zainab">
+											Zainab Mohamed - Senior Stylist
+										</option>
+										<option value="grace">
+											Grace Wanjiku - Natural Hair Expert
+										</option>
+										<option value="amina">
+											Amina Diallo - Braiding Specialist
+										</option>
+										<option value="sarah">
+											Sarah Omondi - Kids Specialist
+										</option>
+									</select>
+								</div>
+								<div class="form-group">
+									<label>Date *</label>
+									<input type="date" name="date" required id="datePicker" />
+								</div>
+								<div class="form-group">
+									<label>Time Slot *</label>
+									<div class="time-picker-field" data-time-picker="booking">
+										<input
+											type="text"
+											name="time"
+											required
+											id="timeSelect"
+											list="bookingTimeOptions"
+											placeholder="Select or type time"
+											autocomplete="off"
+											inputmode="text"
+											aria-controls="bookingTimeDropdown"
+											aria-expanded="false"
+										/>
+										<button
+											type="button"
+											class="time-picker-trigger"
+											id="timePickerTrigger"
+											aria-label="Show available times"
+											aria-controls="bookingTimeDropdown"
+											aria-expanded="false"
+										>
+											<i class="fa-regular fa-clock" aria-hidden="true"></i>
+										</button>
+										<datalist id="bookingTimeOptions"></datalist>
+										<div
+											class="time-picker-dropdown"
+											id="bookingTimeDropdown"
+											role="listbox"
+											hidden
+										></div>
+									</div>
+								</div>
+								<div
+									class="form-group full waitlist-panel hidden"
+									id="waitlistPanel"
+								>
+									<div class="waitlist-panel__header">
+										<div>
+											<strong>Want a booked time?</strong>
+											<small id="waitlistHint">
+												Booked slots are shown as disabled above. Choose one
+												below to join the waitlist.
+											</small>
+										</div>
+										<span class="waitlist-panel__badge">Waitlist</span>
+									</div>
+									<div class="waitlist-panel__controls">
+										<select
+											id="waitlistTimeSelect"
+											aria-label="Booked time to join waitlist"
+										>
+											<option value="">Select booked time</option>
+										</select>
+										<button
+											type="button"
+											class="btn btn-outline"
+											id="joinWaitlistBtn"
+										>
+											Join Waitlist
+										</button>
+									</div>
+								</div>
+								<div class="form-group full">
+									<label>Inspiration Photo (Optional)</label>
+									<input
+										type="file"
+										name="inspirationImage"
+										id="inspirationImage"
+										accept="image/*"
+									/>
+								</div>
+								<div class="form-group full">
+									<label>Special Requests</label>
+									<textarea
+										name="notes"
+										rows="3"
+										placeholder="Any specific requirements or notes..."
+									></textarea>
+								</div>
+							</div>
+							<button type="submit" class="submit-booking" id="submitBtn">
+								<svg
+									width="20"
+									height="20"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+									<line x1="16" y1="2" x2="16" y2="6"></line>
+									<line x1="8" y1="2" x2="8" y2="6"></line>
+									<line x1="3" y1="10" x2="21" y2="10"></line>
+								</svg>
+								Confirm Booking
+							</button>
+						</form>
+
+						<div class="booking-success" id="bookingSuccess">
+							<svg
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							>
+								<path d="M22 11.08V12a10 10 0 11-5.93-9.14"></path>
+								<polyline points="22 4 12 14.01 9 11.01"></polyline>
+							</svg>
+							<h3>Booking Confirmed!</h3>
+							<p style="color: var(--text-secondary)">
+								Check your email for confirmation details. We'll send a reminder
+								on Whatsapp 2 Hours before your appointment.
+							</p>
+							<div
+								class="post-booking-auth-prompt hidden"
+								id="postBookingAuthPrompt"
+							>
+								<h4>Save your booking and track updates?</h4>
+								<p>
+									Log in now so you can manage appointments, reviews, and faster
+									rebooking.
+								</p>
+								<div class="post-booking-auth-actions">
+									<button
+										type="button"
+										class="btn btn-primary"
+										id="postBookingGoogleBtn"
+									>
+										Log In Now
+									</button>
+									<button
+										type="button"
+										class="btn btn-outline"
+										id="postBookingLaterBtn"
+									>
+										Maybe Later
+									</button>
+								</div>
+							</div>
+							<button
+								class="btn btn-primary"
+								onclick="resetBooking()"
+								style="margin-top: 20px"
+							>
+								Book Another
+							</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- ========== CLIENT DASHBOARD ========== -->
+		<section class="client-dashboard hidden" id="clientDashboard">
+			<div class="container">
+				<div class="dashboard-shell animate-on-scroll">
+					<div class="dashboard-heading main-section-heading">
+						<div class="section-subtitle">Your Account</div>
+						<h2 class="section-title">My Dashboard</h2>
+					</div>
+					<p class="section-desc section-heading-copy">
+						Track appointments, manage your reviews, and keep your profile up to
+						date for faster rebooking.
+					</p>
+					<div
+						class="form-message dashboard-message"
+						id="dashboardMessage"
+					></div>
+
+					<div class="dashboard-grid">
+						<div class="dashboard-card">
+							<h3>My Appointments</h3>
+							<ul id="dashboardBookingsList" class="dashboard-list">
+								<li>No appointments yet.</li>
+							</ul>
+							<div class="dashboard-inline-note">
+								You can reschedule or cancel active bookings before appointment
+								time.
+							</div>
+						</div>
+
+						<div class="dashboard-card">
+							<h3>My Reviews</h3>
+							<ul id="dashboardReviewsList" class="dashboard-list">
+								<li>No reviews submitted yet.</li>
+							</ul>
+						</div>
+
+						<div class="dashboard-card">
+							<h3>
+								Favorite Styles
+								<span class="dashboard-count-badge" id="dashboardFavoritesCount"
+									>0</span
+								>
+							</h3>
+							<ul id="dashboardFavoritesList" class="dashboard-favorites-list">
+								<li>Log in to save favorite gallery styles.</li>
+							</ul>
+						</div>
+
+						<div class="dashboard-card">
+							<h3>Profile Settings</h3>
+							<div class="dashboard-profile-item">
+								<span>Name</span>
+								<strong id="dashboardProfileName">Guest User</strong>
+							</div>
+							<div class="dashboard-profile-item">
+								<span>Email</span>
+								<strong id="dashboardProfileEmail">Not signed in</strong>
+							</div>
+							<div class="dashboard-profile-item">
+								<span>Phone</span>
+								<strong id="dashboardProfilePhone"
+									>Add phone during booking</strong
+								>
+							</div>
+							<div class="dashboard-actions">
+								<button
+									type="button"
+									class="btn btn-outline"
+									id="dashboardAuthBtn"
+								>
+									Log In to Sync Data
+								</button>
+							</div>
+						</div>
+
+						<div class="dashboard-card dashboard-security-card">
+							<h3>
+								Security &amp; Privacy
+								<span
+									class="dashboard-count-badge"
+									id="dashboardLoginHistoryCount"
+									>0</span
+								>
+							</h3>
+							<p class="dashboard-inline-note" style="margin-bottom: 10px">
+								We collect login activity for account security and fraud
+								prevention.
+							</p>
+							<ul id="dashboardLoginHistoryList" class="dashboard-list">
+								<li>Log in to view your recent login history.</li>
+							</ul>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<div class="auth-modal" id="dashboardRescheduleModal" aria-hidden="true">
+			<div class="auth-modal-backdrop" id="dashboardRescheduleBackdrop"></div>
+			<div
+				class="auth-modal-dialog"
+				role="dialog"
+				aria-modal="true"
+				aria-labelledby="dashboardRescheduleTitle"
+			>
+				<div class="auth-modal-header">
+					<h3 id="dashboardRescheduleTitle">Reschedule Booking</h3>
+					<button
+						type="button"
+						class="auth-modal-close"
+						id="dashboardRescheduleCloseBtn"
+						aria-label="Close"
+					>
+						×
+					</button>
+				</div>
+				<div class="auth-modal-body">
+					<div
+						class="form-message"
+						id="dashboardRescheduleMessage"
+						style="display: none"
+					></div>
+					<div class="form-grid">
+						<div class="form-group">
+							<label for="dashboardRescheduleDate">New Date *</label>
+							<input type="date" id="dashboardRescheduleDate" />
+						</div>
+						<div class="form-group">
+							<label for="dashboardRescheduleStylist">Stylist</label>
+							<select id="dashboardRescheduleStylist">
+								<option value="any">Any Available</option>
+								<option value="fatima">Fatima Hassan - Master Braider</option>
+								<option value="zainab">Zainab Mohamed - Senior Stylist</option>
+								<option value="grace">
+									Grace Wanjiku - Natural Hair Expert
+								</option>
+								<option value="amina">
+									Amina Diallo - Braiding Specialist
+								</option>
+								<option value="sarah">Sarah Omondi - Kids Specialist</option>
+							</select>
+						</div>
+						<div class="form-group full">
+							<label for="dashboardRescheduleTime">New Time *</label>
+							<select id="dashboardRescheduleTime">
+								<option value="">Select Time</option>
+							</select>
+						</div>
+					</div>
+					<div class="dashboard-actions" style="margin-top: 12px">
+						<button
+							type="button"
+							class="btn btn-outline"
+							id="dashboardRescheduleCancelBtn"
+						>
+							Cancel
+						</button>
+						<button
+							type="button"
+							class="btn btn-primary"
+							id="dashboardRescheduleSaveBtn"
+						>
+							Save Changes
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- ========== TESTIMONIALS ========== -->
+		<section class="testimonials" id="testimonials">
+			<div class="container">
+				<div class="testimonials-header main-section-heading animate-on-scroll">
+					<div class="section-subtitle">Client Love</div>
+					<h2 class="section-title">What Our Queens Say</h2>
+				</div>
+				<p class="section-desc section-heading-copy" id="reviewsSummary">
+					★ 5.0 average from 6 reviews
+				</p>
+				<div class="review-auth-hint hidden" id="reviewAuthHint" role="status">
+					<div class="review-auth-badges">
+						<span class="review-auth-badge">🔐 Log in to submit reviews.</span>
+						<span class="review-auth-badge"
+							>🚩 Log in to report abusive reviews.</span
+						>
+					</div>
+					<button type="button" class="btn btn-outline" id="reviewAuthHintBtn">
+						Log In
+					</button>
+				</div>
+				<div class="reviews-sort-row animate-on-scroll delay-1">
+					<label class="reviews-sort-label" for="reviewsSortSelect"
+						>Sort Reviews:</label
+					>
+					<select id="reviewsSortSelect" class="reviews-sort-select">
+						<option value="featured">Featured</option>
+						<option value="newest">Newest</option>
+						<option value="highest-rated">Highest Rated</option>
+					</select>
+				</div>
+				<div
+					class="testimonials-grid animate-on-scroll delay-1"
+					id="testimonialsGrid"
+				>
+					<!-- Testimonials generated by JS -->
+				</div>
+
+				<div
+					class="reviews-toggle-controls animate-on-scroll delay-1"
+					id="reviewsToggleControls"
+				>
+					<button type="button" class="btn btn-outline" id="viewAllReviewsBtn">
+						View All Reviews
+					</button>
+					<button
+						type="button"
+						class="btn btn-outline hidden"
+						id="viewLessReviewsBtn"
+					>
+						View Less Reviews
+					</button>
+				</div>
+
+				<div
+					class="review-submit-auth-gate hidden animate-on-scroll delay-2"
+					id="reviewSubmitAuthGate"
+				>
+					<div class="review-submit-auth-badge">🔐 Members only</div>
+					<h3>Log in to submit a review</h3>
+					<p>
+						Guests can still read all approved reviews, but only registered
+						logged-in users can post new reviews.
+					</p>
+					<button
+						type="button"
+						class="btn btn-primary"
+						id="reviewSubmitAuthGateBtn"
+					>
+						Log In to Submit Review
+					</button>
+				</div>
+
+				<div
+					class="reviews-submit-wrap animate-on-scroll delay-2"
+					id="reviewSubmitWrap"
+				>
+					<form class="reviews-submit-form" id="reviewForm">
+						<input type="hidden" id="reviewEditId" value="" />
+						<h3>Share Your Experience</h3>
+						<p>
+							Loved your braids? Tell us about your visit. New reviews are
+							submitted for approval before they appear live.
+						</p>
+						<div
+							class="form-message"
+							id="reviewMessage"
+							style="display: none"
+						></div>
+						<div class="form-grid">
+							<div class="form-group">
+								<label for="reviewName">Your Name *</label>
+								<input
+									type="text"
+									id="reviewName"
+									placeholder="Amina Ochieng"
+									required
+								/>
+							</div>
+							<div class="form-group">
+								<label for="reviewRating">Rating *</label>
+								<select id="reviewRating" required>
+									<option value="">Select rating</option>
+									<option value="5">★★★★★ (5)</option>
+									<option value="4">★★★★☆ (4)</option>
+									<option value="3">★★★☆☆ (3)</option>
+									<option value="2">★★☆☆☆ (2)</option>
+									<option value="1">★☆☆☆☆ (1)</option>
+								</select>
+							</div>
+							<div class="form-group full">
+								<label for="reviewService">Service (Optional)</label>
+								<select id="reviewService">
+									<option value="">Select Service (Optional)</option>
+								</select>
+							</div>
+							<div class="form-group full">
+								<label for="reviewPhoto">Photo (Optional)</label>
+								<input type="file" id="reviewPhoto" accept="image/*" />
+							</div>
+							<div class="form-group full">
+								<label for="reviewText">Your Review *</label>
+								<textarea
+									id="reviewText"
+									rows="4"
+									placeholder="Tell us what you loved about your appointment..."
+									required
+								></textarea>
+							</div>
+						</div>
+						<div class="admin-booking-actions" style="margin-top: 4px">
+							<button
+								type="submit"
+								class="btn btn-primary"
+								id="submitReviewBtn"
+							>
+								Submit Review
+							</button>
+							<button
+								type="button"
+								class="btn btn-outline"
+								id="cancelReviewEditBtn"
+								style="display: none"
+							>
+								Cancel Edit
+							</button>
+						</div>
+					</form>
+				</div>
+			</div>
+		</section>
+
+		<!-- ========== BLOG ========== -->
+		<section class="blog" id="blog">
+			<div class="container">
+				<div class="blog-header main-section-heading animate-on-scroll">
+					<div class="section-subtitle">Hair Care Tips & Guides</div>
+					<h2 class="section-title">From Our Blog</h2>
+				</div>
+				<p class="section-desc section-heading-copy">
+					Get insider tips on braids, natural hair care, skincare, nail health,
+					makeup longevity, grooming routines, lash care, wellness, and bridal
+					beauty planning from our expert team.
+				</p>
+				<div
+					class="blog-scroll-controls animate-on-scroll delay-1"
+					id="blogScrollControls"
+				>
+					<button type="button" class="btn btn-outline" id="blogPrevBtn">
+						<i class="fa-solid fa-arrow-left"></i> Prev
+					</button>
+					<button type="button" class="btn btn-outline" id="blogNextBtn">
+						Next <i class="fa-solid fa-arrow-right"></i>
+					</button>
+				</div>
+				<div class="blog-grid animate-on-scroll delay-1" id="blogGrid">
+					<!-- Blogs rendered from JS -->
+				</div>
+				<div
+					class="reviews-toggle-controls animate-on-scroll delay-1"
+					id="blogToggleControls"
+				>
+					<button type="button" class="btn btn-outline" id="viewAllBlogsBtn">
+						View More Blogs
+					</button>
+					<button
+						type="button"
+						class="btn btn-outline hidden"
+						id="viewLessBlogsBtn"
+					>
+						View Less Blogs
+					</button>
+				</div>
+			</div>
+		</section>
+
+		<!-- ========== VISIT & LOCATION ========== -->
+		<section class="contact" id="visit">
+			<div class="container">
+				<div
+					class="text-center contact-heading main-section-heading animate-on-scroll"
+				>
+					<div class="section-subtitle" style="justify-content: center">
+						Get In Touch
+					</div>
+					<h2 class="section-title">Visit Our Salon</h2>
+				</div>
+				<p class="section-desc section-heading-copy mb-lg">
+					We'd love to hear from you. Visit us or reach out through any of the
+					channels below.
+				</p>
+				<div class="contact-inner">
+					<div class="contact-info animate-on-scroll delay-1">
+						<div class="contact-item">
+							<div class="contact-item-icon">
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"></path>
+									<circle cx="12" cy="10" r="3"></circle>
+								</svg>
+							</div>
+							<div class="contact-item-text">
+								<h4>Location</h4>
+								<p data-client-html="contact.addressHtml">
+									Westlands Shopping Centre, 2nd Floor<br />Waiyaki Way,
+									Nairobi, Kenya
+								</p>
+							</div>
+						</div>
+						<div class="contact-item">
+							<div class="contact-item-icon">
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<path
+										d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"
+									></path>
+								</svg>
+							</div>
+							<div class="contact-item-text">
+								<h4>Phone</h4>
+								<p>
+									<a
+										href="tel:+254700123456"
+										target="_blank"
+										data-client-text="contact.phonePrimary"
+										data-client-attr="href:contact.phonePrimaryHref"
+										>+254 700 123 456</a
+									>
+								</p>
+								<p>
+									<a
+										href="tel:+254711987654"
+										target="_blank"
+										data-client-text="contact.phoneSecondary"
+										data-client-attr="href:contact.phoneSecondaryHref"
+										>+254 711 987 654</a
+									>
+								</p>
+							</div>
+						</div>
+						<div class="contact-item">
+							<div class="contact-item-icon">
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<path
+										d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
+									></path>
+									<polyline points="22,6 12,13 2,6"></polyline>
+								</svg>
+							</div>
+							<div class="contact-item-text">
+								<h4>Email</h4>
+								<p>
+									<a
+										href="mailto:info@royalbraids.ke"
+										target="_blank"
+										data-client-text="contact.emailPrimary"
+										data-client-attr="href:contact.emailPrimaryHref"
+										>info@royalbraids.ke</a
+									>
+								</p>
+								<p>
+									<a
+										href="mailto:bookings@royalbraids.ke"
+										target="_blank"
+										data-client-text="contact.emailBookings"
+										data-client-attr="href:contact.emailBookingsHref"
+										>bookings@royalbraids.ke</a
+									>
+								</p>
+							</div>
+						</div>
+						<div class="contact-item">
+							<div class="contact-item-icon">
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<circle cx="12" cy="12" r="10"></circle>
+									<polyline points="12 6 12 12 16 14"></polyline>
+								</svg>
+							</div>
+							<div class="contact-item-text">
+								<h4>Operating Hours</h4>
+								<table class="hours-table">
+									<tr>
+										<td>Monday - Friday</td>
+										<td data-client-text="contact.weekdayHours">
+											8:00 AM - 8:00 PM
+										</td>
+									</tr>
+									<tr>
+										<td>Saturday</td>
+										<td data-client-text="contact.saturdayHours">
+											9:00 AM - 7:00 PM
+										</td>
+									</tr>
+									<tr>
+										<td>Sunday</td>
+										<td data-client-text="contact.sundayHours">
+											10:00 AM - 5:00 PM
+										</td>
+									</tr>
+									<tr>
+										<td>Public Holidays</td>
+										<td data-client-text="contact.publicHolidayHours">
+											10:00 AM - 4:00 PM
+										</td>
+									</tr>
+								</table>
+							</div>
+						</div>
+					</div>
+					<div class="map-container animate-on-scroll delay-2">
+						<iframe
+							src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3988.8199!2d36.8075!3d-1.2644!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x182f17390b2f4643%3A0x4b25b087296c88f7!2sWestlands%2C+Nairobi!5e0!3m2!1sen!2ske!4v1"
+							data-client-attr="src:contact.mapEmbedUrl"
+							allowfullscreen
+							loading="lazy"
+						></iframe>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- ========== CONTACT FORM ========== -->
+		<section class="newsletter contact-form-section" id="contact">
+			<div class="container">
+				<div class="contact-heading main-section-heading animate-on-scroll">
+					<div class="section-subtitle">Send Us A Message</div>
+					<h2 class="section-title">Contact Us</h2>
+				</div>
+				<p class="section-desc section-heading-copy">
+					Have questions about our services or need assistance? Send us a
+					message and we'll get back to you soon.
+				</p>
+				<div class="newsletter-inner animate-on-scroll delay-1">
+					<form
+						class="newsletter-form"
+						id="contactForm"
+						method="POST"
+						data-email-provider="firebase-functions-resend"
+					>
+						<div class="contact-form-grid">
+							<div class="form-group">
+								<label for="contactName">Name *</label>
+								<input
+									type="text"
+									id="contactName"
+									name="name"
+									placeholder="Jane Doe"
+									required
+								/>
+							</div>
+							<div class="form-group">
+								<label for="contactEmail">Email *</label>
+								<input
+									type="email"
+									id="contactEmail"
+									name="email"
+									placeholder="janedoe@gmail.com"
+									required
+								/>
+							</div>
+							<div class="form-group full">
+								<label for="contactSubject">Subject *</label>
+								<input
+									type="text"
+									id="contactSubject"
+									name="subject"
+									placeholder="How can we help you?"
+									required
+								/>
+							</div>
+							<div class="form-group full">
+								<label for="contactMessage">Message *</label>
+								<textarea
+									id="contactMessage"
+									name="message"
+									rows="4"
+									placeholder="Tell us more about your inquiry..."
+									required
+								></textarea>
+							</div>
+						</div>
+						<button type="submit" class="btn btn-primary">Send Message</button>
+					</form>
+					<div
+						class="form-message"
+						id="contactFormMessage"
+						style="margin-top: 16px"
+					></div>
+				</div>
+			</div>
+		</section>
+
+		<!-- ========== FOOTER ========== -->
+		<footer class="footer">
+			<div class="container">
+				<div class="footer-grid">
+					<div>
+						<div class="footer-logo" data-client-html="brand.footerLogoHtml">
+							👑 ROYAL BRAIDS
+						</div>
+						<p class="footer-desc" data-client-text="brand.footerDescription">
+							Nairobi’s premier beauty destination for braids and
+							beyond—offering expert hair styling, spa indulgence, nail
+							artistry, makeup, barber grooming, lash enhancement, wellness
+							care, and unforgettable bridal/event transformations.
+						</p>
+						<div class="social-links">
+							<a
+								href="https://www.instagram.com"
+								target="_blank"
+								class="social-link"
+								aria-label="Instagram"
+								data-client-attr="href:social.instagram"
+							>
+								<i class="fab fa-instagram"></i>
+							</a>
+							<a
+								href="https://www.facebook.com"
+								target="_blank"
+								class="social-link"
+								aria-label="Facebook"
+								data-client-attr="href:social.facebook"
+							>
+								<i class="fab fa-facebook-f"></i>
+							</a>
+							<a
+								href="https://x.com"
+								target="_blank"
+								class="social-link"
+								aria-label="Twitter/X"
+								data-client-attr="href:social.twitter"
+							>
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke-width="2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<path d="M4 4l11.733 16h4.267l-11.733 -16z"></path>
+									<path d="M4 20l6.768 -6.768m2.46 -2.46l6.772 -6.772"></path>
+								</svg>
+							</a>
+							<a
+								href="https://www.tiktok.com"
+								target="_blank"
+								class="social-link"
+								aria-label="TikTok"
+								data-client-attr="href:social.tiktok"
+							>
+								<i class="fab fa-tiktok"></i>
+							</a>
+							<a
+								href="https://wa.me/011123456789"
+								target="_blank"
+								class="social-link"
+								aria-label="WhatsApp"
+								data-client-attr="href:social.whatsapp"
+							>
+								<i class="fab fa-whatsapp"></i>
+							</a>
+						</div>
+					</div>
+					<div>
+						<h4>Quick Links</h4>
+						<ul class="footer-links">
+							<li><a href="#home">Home</a></li>
+							<li><a href="#services">Services</a></li>
+							<li><a href="#gallery">Gallery</a></li>
+							<li><a href="#booking">Book Now</a></li>
+							<li><a href="#visit">Visit Us</a></li>
+							<li><a href="#contact">Contact</a></li>
+						</ul>
+					</div>
+					<div>
+						<h4>Services</h4>
+						<ul class="footer-links">
+							<li><a href="#service-hair-braiding">Hair Services</a></li>
+							<li><a href="#service-facials">Beauty Spa Services</a></li>
+							<li><a href="#service-manicure">Nail Services</a></li>
+							<li><a href="#service-bridal-makeup">Makeup Services</a></li>
+							<li><a href="#service-bridal-hair-makeup">Bridal Packages</a></li>
+						</ul>
+					</div>
+					<div>
+						<h4>Contact Info</h4>
+						<ul class="footer-links">
+							<li>
+								📍
+								<span data-client-text="contact.locationShort"
+									>Westlands, Nairobi</span
+								>
+							</li>
+							<li>
+								<a
+									href="tel:+254700123456"
+									target="_blank"
+									data-client-attr="href:contact.phonePrimaryHref"
+									>📞
+									<span data-client-text="contact.phonePrimary"
+										>+254 700 123 456</span
+									></a
+								>
+							</li>
+							<li>
+								<a
+									href="mailto:info@royalcuts.ke"
+									target="_blank"
+									data-client-attr="href:contact.emailPrimaryHref"
+									>📧
+									<span data-client-text="contact.emailPrimary"
+										>info@royalbraids.ke</span
+									></a
+								>
+							</li>
+							<li>
+								🕐
+								<span data-client-text="contact.footerWeekdayHours"
+									>Mon-Fri: 8AM - 8PM</span
+								>
+							</li>
+							<li>
+								🕐
+								<span data-client-text="contact.footerWeekendHours"
+									>Sat-Sun: 9AM - 7PM</span
+								>
+							</li>
+						</ul>
+					</div>
+				</div>
+				<div class="footer-bottom">
+					<p data-client-text="brand.copyright">
+						&copy; <span id="footerYearFallback">2026</span> Royal Braids. All
+						rights reserved.
+					</p>
+					<p data-client-text="brand.craftedBy">
+						Crafted with ❤️ in Nairobi, Kenya
+					</p>
+				</div>
+			</div>
+		</footer>
+
+		<!-- ========== LIGHTBOX ========== -->
+		<div class="lightbox" id="lightbox">
+			<button class="lightbox-nav lightbox-prev" id="lightboxPrev">❮</button>
+			<button class="lightbox-nav lightbox-next" id="lightboxNext">❯</button>
+			<div class="lightbox-content-wrap">
+				<button class="lightbox-close" id="lightboxClose">✕</button>
+				<div class="lightbox-image-stack">
+					<div
+						class="lightbox-before-after"
+						id="lightboxBeforeAfter"
+						style="display: none"
+					>
+						<div class="lightbox-image-panel">
+							<span>Before</span>
+							<img
+								src=""
+								alt="Before style"
+								id="lightboxBeforeImg"
+								loading="lazy"
+								decoding="async"
+							/>
+						</div>
+						<div class="lightbox-image-panel">
+							<span>After</span>
+							<img
+								src=""
+								alt="After style"
+								id="lightboxAfterImg"
+								loading="lazy"
+								decoding="async"
+							/>
+						</div>
+					</div>
+					<img
+						src=""
+						alt="Gallery style"
+						id="lightboxImg"
+						loading="lazy"
+						decoding="async"
+					/>
+				</div>
+				<div class="lightbox-details" id="lightboxDetails">
+					<h3 id="lightboxStyleName">Style Name</h3>
+					<p id="lightboxStyleType">Style type</p>
+					<ul>
+						<li>
+							<strong>Time Taken:</strong> <span id="lightboxTimeTaken">-</span>
+						</li>
+						<li>
+							<strong>Price Range:</strong>
+							<span id="lightboxPriceRange">-</span>
+						</li>
+						<li><strong>Length:</strong> <span id="lightboxLength">-</span></li>
+						<li><strong>Size:</strong> <span id="lightboxSize">-</span></li>
+						<li>
+							<strong>Hair Type:</strong> <span id="lightboxHairType">-</span>
+						</li>
+						<li>
+							<strong>Stylist:</strong> <span id="lightboxStylist">-</span>
+						</li>
+					</ul>
+					<a
+						class="btn btn-primary gallery-book-now-btn"
+						href="#booking"
+						id="lightboxBookNow"
+						>Book Now</a
+					>
+					<button
+						type="button"
+						class="btn btn-outline gallery-favorite-btn"
+						id="lightboxFavoriteBtn"
+					>
+						♡ Save Style
+					</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- ========== AUTH MODAL ========== -->
+		<div class="auth-modal" id="authModal" aria-hidden="true">
+			<div class="auth-modal-backdrop" id="authModalBackdrop"></div>
+			<div
+				class="auth-card"
+				role="dialog"
+				aria-modal="true"
+				aria-labelledby="authCardTitle"
+			>
+				<button
+					type="button"
+					class="auth-close"
+					id="closeAuthModalBtn"
+					aria-label="Close log in modal"
+				>
+					✕
+				</button>
+				<div class="auth-card-head">
+					<p class="section-subtitle">Welcome Back</p>
+					<h3 id="authCardTitle">Log in to Manage Bookings, Reviews, Favorites styles & Account</h3>
+				</div>
+
+				<button
+					type="button"
+					class="auth-provider-btn auth-provider-btn--muted"
+					id="continueWithPhoneBtn"
+					disabled
+				>
+					Continue with Phone (coming soon)
+				</button>
+
+				<div class="auth-separator"><span>or</span></div>
+
+				<form id="emailAuthForm" class="auth-email-form">
+					<div class="form-group" id="authNameGroup" style="display: none">
+						<label for="authName">Name</label>
+						<input
+							type="text"
+							id="authName"
+							placeholder="Jane Doe"
+							autocomplete="name"
+						/>
+					</div>
+					<div class="form-group">
+						<label for="authEmail">Email</label>
+						<input
+							type="email"
+							id="authEmail"
+							placeholder="you@email.com"
+							autocomplete="email"
+							required
+						/>
+					</div>
+					<div class="form-group auth-password-field">
+						<label for="authPassword">Password</label>
+						<div class="auth-password-input-wrap">
+							<input
+								type="password"
+								id="authPassword"
+								placeholder="••••••••"
+								autocomplete="current-password"
+								required
+							/>
+							<button
+								type="button"
+								class="auth-password-toggle"
+								id="authPasswordToggle"
+								aria-label="Show password"
+								aria-pressed="false"
+							>
+								<i class="fa-solid fa-eye" aria-hidden="true"></i>
+							</button>
+						</div>
+					</div>
+					<button
+						type="submit"
+						class="btn btn-primary auth-submit-btn"
+						id="emailAuthSubmit"
+					>
+						Log In
+					</button>
+				</form>
+
+				<div class="auth-links">
+					<button type="button" id="switchToSignupBtn">
+						Don't have an account? Register
+					</button>
+					<button type="button" id="switchToSigninBtn" class="hidden">
+						Already have an account? Log In
+					</button>
+					<button type="button" id="forgotPasswordBtn">Forgot Password?</button>
+					<button type="button" id="continueAsGuestBtn">
+						Continue as Guest
+					</button>
+				</div>
+				<div class="form-message" id="authMessage"></div>
+			</div>
+		</div>
+
+		<!-- ========== MANAGE ACCOUNT MODAL ========== -->
+		<div
+			class="auth-modal manage-account-modal"
+			id="manageAccountModal"
+			aria-hidden="true"
+		>
+			<div class="auth-modal-backdrop" id="manageAccountBackdrop"></div>
+			<div
+				class="auth-card manage-account-card"
+				role="dialog"
+				aria-modal="true"
+				aria-labelledby="manageAccountTitle"
+			>
+				<button
+					type="button"
+					class="auth-close"
+					id="manageAccountCloseBtn"
+					aria-label="Close manage account"
+				>
+					✕
+				</button>
+
+				<div class="auth-card-head">
+					<p class="section-subtitle">My Dashboard</p>
+					<h3 id="manageAccountTitle">Manage Account</h3>
+				</div>
+
+				<div class="form-message" id="manageAccountMessage"></div>
+
+				<div class="manage-account-body">
+					<section class="manage-account-section">
+						<h4>Profile Info (Personalization)</h4>
+						<div class="manage-account-avatar-row">
+							<div
+								class="manage-account-avatar-preview"
+								id="manageAccountAvatarPreview"
+							>
+								<span id="manageAccountAvatarInitial">R</span>
+							</div>
+							<div class="manage-account-avatar-actions">
+								<label
+									class="btn btn-outline manage-account-upload-btn"
+									for="manageAccountAvatarInput"
+								>
+									Add / Change Picture
+								</label>
+								<input
+									type="file"
+									id="manageAccountAvatarInput"
+									accept="image/*"
+								/>
+								<small>JPG/PNG up to 5MB</small>
+							</div>
+						</div>
+						<div class="form-grid">
+							<div class="form-group">
+								<label for="manageAccountName">Name</label>
+								<input
+									type="text"
+									id="manageAccountName"
+									placeholder="Your full name"
+								/>
+							</div>
+							<div class="form-group">
+								<label for="manageAccountEmail">Email</label>
+								<input
+									type="email"
+									id="manageAccountEmail"
+									placeholder="you@email.com"
+								/>
+								<small
+									class="manage-account-input-hint"
+									id="manageAccountEmailHint"
+									>Use a valid email format (e.g. name@example.com).</small
+								>
+							</div>
+							<div class="form-group full">
+								<label for="manageAccountPhone">Phone Number</label>
+								<input
+									type="tel"
+									id="manageAccountPhone"
+									placeholder="+254 700 123 456"
+								/>
+								<small
+									class="manage-account-input-hint"
+									id="manageAccountPhoneHint"
+									>Use digits with optional +, spaces, or dashes.</small
+								>
+							</div>
+						</div>
+						<button
+							type="button"
+							class="btn btn-primary"
+							id="manageAccountSaveProfileBtn"
+						>
+							Save Profile
+						</button>
+					</section>
+
+					<section class="manage-account-section">
+						<h4>Login &amp; Security (Protection)</h4>
+						<div class="form-grid">
+							<div class="form-group">
+								<label for="manageAccountCurrentPassword"
+									>Current Password</label
+								>
+								<div class="auth-password-input-wrap">
+									<input
+										type="password"
+										id="manageAccountCurrentPassword"
+										autocomplete="current-password"
+										placeholder="••••••••"
+									/>
+									<button
+										type="button"
+										class="auth-password-toggle"
+										id="manageAccountCurrentPasswordToggle"
+										aria-label="Show current password"
+										aria-pressed="false"
+									>
+										<i class="fa-solid fa-eye" aria-hidden="true"></i>
+									</button>
+								</div>
+							</div>
+							<div class="form-group">
+								<label for="manageAccountNewPassword">New Password</label>
+								<div class="auth-password-input-wrap">
+									<input
+										type="password"
+										id="manageAccountNewPassword"
+										autocomplete="new-password"
+										placeholder="At least 6 characters"
+									/>
+									<button
+										type="button"
+										class="auth-password-toggle"
+										id="manageAccountNewPasswordToggle"
+										aria-label="Show new password"
+										aria-pressed="false"
+									>
+										<i class="fa-solid fa-eye" aria-hidden="true"></i>
+									</button>
+								</div>
+								<div class="manage-password-strength" aria-live="polite">
+									<div class="manage-password-strength-bar">
+										<span id="managePasswordStrengthFill"></span>
+									</div>
+									<small id="managePasswordStrengthText"
+										>Strength: Too weak</small
+									>
+								</div>
+								<ul class="manage-password-checks" id="managePasswordChecks">
+									<li data-rule="length">At least 8 characters</li>
+									<li data-rule="upper">At least 1 uppercase letter</li>
+									<li data-rule="lower">At least 1 lowercase letter</li>
+									<li data-rule="number">At least 1 number</li>
+								</ul>
+							</div>
+						</div>
+						<div class="manage-account-inline-actions">
+							<button
+								type="button"
+								class="btn btn-primary"
+								id="manageAccountChangePasswordBtn"
+							>
+								Change Password
+							</button>
+							<button
+								type="button"
+								class="btn btn-outline"
+								id="manageAccountResetPasswordBtn"
+							>
+								Send Reset Email
+							</button>
+						</div>
+					</section>
+
+					<section class="manage-account-section">
+						<h4>Account Settings &amp; Customization</h4>
+						<div class="manage-account-subsection">
+							<h5>Appearance</h5>
+							<div class="form-grid">
+								<div class="form-group">
+									<label for="manageAccountThemeSelect">Theme</label>
+									<select id="manageAccountThemeSelect">
+										<option value="dark">Dark</option>
+										<option value="light">Light</option>
+									</select>
+								</div>
+								<div class="form-group">
+									<label for="manageAccountFontSizeSelect">Font Size</label>
+									<select id="manageAccountFontSizeSelect">
+										<option value="normal">Default</option>
+										<option value="large">Large</option>
+										<option value="xlarge">Extra Large</option>
+									</select>
+								</div>
+							</div>
+							<div class="manage-account-checks">
+								<label
+									><input type="checkbox" id="manageAccountHighContrast" /> High
+									Contrast</label
+								>
+								<label
+									><input type="checkbox" id="manageAccountReducedMotion" />
+									Reduced Motion</label
+								>
+							</div>
+						</div>
+
+						<div class="manage-account-subsection">
+							<h5>Notifications</h5>
+							<div class="manage-account-checks">
+								<label
+									><input type="checkbox" id="manageAccountNotifEmail" /> Email
+									Notifications</label
+								>
+								<label
+									><input type="checkbox" id="manageAccountNotifSms" /> SMS
+									Notifications</label
+								>
+								<label
+									><input type="checkbox" id="manageAccountNotifPush" /> Push
+									Notifications</label
+								>
+							</div>
+							<button
+								type="button"
+								class="btn btn-primary"
+								id="manageAccountSavePreferencesBtn"
+							>
+								Save Preferences
+							</button>
+						</div>
+
+						<div class="manage-account-subsection manage-account-danger-zone">
+							<h5>Account Deletion</h5>
+							<p>This action is permanent and cannot be undone.</p>
+							<button
+								type="button"
+								class="btn btn-outline dashboard-delete-btn"
+								id="manageAccountDeleteBtn"
+							>
+								Delete Account
+							</button>
+						</div>
+					</section>
+				</div>
+			</div>
+		</div>
+
+		<!-- ========== DELETE ACCOUNT CONFIRM MODAL ========== -->
+		<div class="auth-modal" id="deleteAccountConfirmModal" aria-hidden="true">
+			<div class="auth-modal-backdrop" id="deleteAccountConfirmBackdrop"></div>
+			<div
+				class="auth-card delete-account-confirm-card"
+				role="dialog"
+				aria-modal="true"
+				aria-labelledby="deleteAccountConfirmTitle"
+			>
+				<button
+					type="button"
+					class="auth-close"
+					id="deleteAccountConfirmCloseBtn"
+					aria-label="Close delete account confirmation"
+				>
+					✕
+				</button>
+				<div class="auth-card-head">
+					<p class="section-subtitle">Account Safety</p>
+					<h3 id="deleteAccountConfirmTitle">Delete your account?</h3>
+				</div>
+				<p
+					class="delete-account-confirm-message"
+					id="deleteAccountConfirmMessage"
+				>
+					This action is permanent and cannot be undone.
+				</p>
+				<div class="delete-account-confirm-actions">
+					<button
+						type="button"
+						class="btn btn-outline"
+						id="deleteAccountConfirmCancelBtn"
+					>
+						Cancel
+					</button>
+					<button
+						type="button"
+						class="btn btn-primary delete-account-confirm-btn"
+						id="deleteAccountConfirmProceedBtn"
+					>
+						Yes, Delete
+					</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- ========== CONTACT SUCCESS POPUP ========== -->
+		<div
+			class="contact-success-popup"
+			id="contactSuccessPopup"
+			role="status"
+			aria-live="polite"
+		>
+			<button
+				class="contact-success-popup__close"
+				id="contactSuccessPopupClose"
+				aria-label="Close notification"
+			>
+				✕
+			</button>
+			<div class="contact-success-popup__icon" aria-hidden="true">
+				<svg
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke-width="2.4"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<path d="M22 11.08V12a10 10 0 11-5.93-9.14"></path>
+					<polyline points="22 4 12 14.01 9 11.01"></polyline>
+				</svg>
+			</div>
+			<div class="contact-success-popup__content">
+				<h4>Message sent successfully.</h4>
+				<p>We'll get back to you soon.</p>
+			</div>
+		</div>
+
+		<!-- ========== ACCOUNT DELETED POPUP ========== -->
+		<div
+			class="contact-success-popup account-delete-popup"
+			id="accountDeleteSuccessPopup"
+			role="status"
+			aria-live="polite"
+		>
+			<div class="contact-success-popup__icon" aria-hidden="true">
+				<svg
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke-width="2.4"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<path d="M22 11.08V12a10 10 0 11-5.93-9.14"></path>
+					<polyline points="22 4 12 14.01 9 11.01"></polyline>
+				</svg>
+			</div>
+			<div class="contact-success-popup__content">
+				<h4>Account deleted successfully.</h4>
+				<p>You are now continuing as guest.</p>
+			</div>
+		</div>
+
+		<div
+			class="favorites-toast"
+			id="favoritesToast"
+			role="status"
+			aria-live="polite"
+		></div>
+
+		<!-- ========== BACK TO TOP ========== -->
+		<a href="#home" class="back-to-top" id="backToTop" aria-label="Back to top">
+			<svg
+				width="24"
+				height="24"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2.5"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+			>
+				<polyline points="18 15 12 9 6 15"></polyline>
+			</svg>
+		</a>
+		</div>
+	</body>
+</html>

@@ -1,0 +1,628 @@
+Royal Braids / Salon Shop - Project Features
+============================================
+
+Project Overview
+----------------
+- Production-ready Firebase salon platform for Royal Braids.
+- Public customer website for services, gallery, booking, reviews, blog, contact, authentication, and client dashboard.
+- Admin console for operational management of bookings, schedule, content, reviews, messages, services, security, and admin users.
+- Firebase-backed realtime data workflows using Authentication, Cloud Firestore, Firestore Rules, Hosting, and Cloud Functions.
+- Cloudinary media upload support for booking inspiration photos, gallery images, review/blog images, and account avatars.
+- Email and WhatsApp automation for bookings, reminders, and waitlist notifications.
+
+Public Website Features
+-----------------------
+- Responsive Royal Braids homepage.
+- Branded public splash screen before the main website reveal.
+- Splash screen hero-image background with Royal Braids welcome copy.
+- Splash screen handwriting-style Royal Braids title animation.
+- Splash loading progress bar with percent text and ARIA progressbar semantics.
+- Splash duration configuration through data-splash-duration or window.ROYAL_BRAIDS_SPLASH_DURATION_MS.
+- Reduced-motion splash duration fallback for users who prefer reduced motion.
+- Splash completion event support through royalBraids:splashComplete.
+- Runtime splash controls through window.royalBraidsSplash.complete() and window.royalBraidsSplash.reveal().
+- Scroll-to-top reset while the splash is active on non-hash page loads.
+- Premium salon branding with hero section, rotating logo, calls to action, and salon contact/location details.
+- Dark mode toggle.
+- Mobile navigation menu.
+- Smooth section navigation for Home, Gallery, Services, Booking, Dashboard, Reviews, Blog, and Contact.
+- Animated counters for happy clients, expert braiders, services rendered, and satisfaction rate.
+- Scroll-based UI animation support.
+- Very-small-screen responsive polish for <=490px phone widths.
+- Compact, high-contrast chip and badge styling for narrow screens.
+- Single-line chip/badge behavior with graceful ellipsis fallback to reduce wrapping/clipping.
+- SEO-related meta description, keywords, Open Graph title, and favicon.
+- Localhost redirect handling for Firebase Auth compatibility when opening from 127.0.0.1.
+
+Services Features
+-----------------
+- JavaScript-driven service catalog.
+- Service category tabs on the public website.
+- Dedicated Braids Services category.
+- Hair Services category.
+- Beauty Spa Services category.
+- Nail Services category.
+- Makeup Services category.
+- Barber Services category.
+- Massage & Wellness category.
+- Eyebrow & Lash Services category.
+- Bridal / Event Packages category.
+- All Services tab.
+- Service cards include name, description, price, duration, icon, category, and category label.
+- “Book This Service” quick-fill behavior for booking forms.
+- Service category visibility can be controlled from the admin console.
+- Disabled categories are hidden from public services tabs/cards.
+- Disabled categories are removed from the booking service dropdown.
+- Service category tabs receive extra compact sizing and contrast tuning on <=490px screens.
+
+Available Service Catalog
+-------------------------
+- Braids Services:
+  - Hair Braiding
+  - Box Braids
+  - Knotless Braids
+  - Cornrows
+  - Fulani Braids
+  - Stitch Braids
+  - Faux Locs
+- Hair Services:
+  - Hair Styling
+  - Hair Cutting
+  - Hair Coloring
+  - Hair Relaxing
+  - Hair Treatment
+  - Wig Installation
+  - Weaving/Extensions
+  - Hair Washing & Blow Dry
+- Beauty Spa Services:
+  - Facials
+  - Body Scrubs
+  - Steam Therapy
+  - Skin Treatments
+  - Sauna
+  - Body Polishing
+  - Acne Treatment
+  - Skin Brightening
+- Nail Services:
+  - Manicure
+  - Pedicure
+  - Gel Polish
+  - Acrylic Nails
+  - Nail Art
+  - Nail Repair
+- Makeup Services:
+  - Bridal Makeup
+  - Party Makeup
+  - Photoshoot Makeup
+  - Everyday Makeup
+  - Eyelash Installation
+- Barber Services:
+  - Haircuts
+  - Beard Grooming
+  - Hair Dye
+  - Kids Haircuts
+  - Lineups/Fades
+- Massage & Wellness:
+  - Full Body Massage
+  - Deep Tissue Massage
+  - Hot Stone Massage
+  - Neck & Shoulder Massage
+- Eyebrow & Lash Services:
+  - Eyebrow Shaping
+  - Eyebrow Tinting
+  - Eyelash Extension
+  - Lash Lift
+- Bridal / Event Packages:
+  - Bridal Hair + Makeup
+  - Wedding Beauty Packages
+  - Graduation Package
+  - Photoshoot Package
+
+Gallery Features
+----------------
+- Public service gallery section.
+- Realtime Firestore gallery rendering from galleryStyles collection.
+- Fallback gallery dataset for offline/empty Firestore states.
+- Service-category gallery filters.
+- Braids-only filters for length, size, and style type.
+- Sorting controls including recommended, name A-Z/Z-A, created date, modified date, new, and old.
+- Featured rails for Trending Braids and Most Booked Braids.
+- Dynamic labels such as “Most Booked Braids” and “View All Braids”.
+- Gallery filter chips and featured pills are compacted on <=490px screens to avoid awkward wrapping.
+- “View All” / compact gallery behavior.
+- Gallery empty state when no styles match filters.
+- Before/after image support.
+- Before/after lightbox support.
+- Lightbox navigation support.
+- Before-image preloading.
+- Save-style-to-favorites support for authenticated clients.
+- Gallery category inference from service/style keywords.
+- Disabled service categories are excluded from gallery filters and gallery results.
+
+Online Booking Features
+-----------------------
+- Public appointment booking form.
+- Required fields for first name, last name, email, phone, service, date, and time slot.
+- Optional preferred stylist selection.
+- Optional custom service input for typed service requests.
+- Optional inspiration image upload.
+- Optional special requests/notes field.
+- Dynamic service dropdown populated from enabled services.
+- Dynamic time-slot dropdown.
+- Realtime booking slot availability from bookingSlots collection.
+- Transactional slot lock to prevent double booking.
+- Booking document creation in Firestore.
+- Booking success confirmation UI.
+- “Book Another” reset flow.
+- Post-booking authentication prompt so clients can log in and track/manage appointments.
+- Booking helper section with direct phone link.
+- Email confirmation expectation shown to clients.
+- WhatsApp reminder expectation shown to clients.
+- Booking status lifecycle support: pending, confirmed, completed, cancelled.
+- Race-condition handling when a slot is taken during booking.
+- Waitlist enrollment prompt when selected slot is no longer available.
+
+Waitlist Features
+-----------------
+- Waitlist workflow for lost booking slots.
+- Public app can prompt the user to join the waitlist when a slot is taken.
+- Waitlist entries are stored in Firestore waitlist collection.
+- Waitlist status support such as waiting and notified flows.
+- Backend notifies the next waitlisted client when a booking slot lock is deleted/released.
+- Waitlist notification can use available email/WhatsApp contact data.
+- Waitlist badges and queue chips are optimized for compact <=490px layouts.
+
+Client Authentication Features
+------------------------------
+- Firebase Authentication integration.
+- Email/password sign-in.
+- Email/password registration.
+- Forgot-password flow.
+- Password reset support.
+- Anonymous/guest sign-in support.
+- Auth modal on public website.
+- Header login button.
+- Authenticated profile menu.
+- Profile dropdown with My Dashboard and Log Out actions.
+- Dashboard navigation link appears for authenticated users.
+- Continue-as-guest flow.
+- Post-booking login prompt.
+- Login activity logging support through callable Cloud Function.
+
+Client Dashboard Features
+-------------------------
+- Authenticated client dashboard section.
+- Dashboard cards for appointments, reviews, favorite styles, profile settings, and security/privacy.
+- Realtime appointment list for the signed-in user.
+- Realtime review list for the signed-in user.
+- Realtime favorites list from users/{uid}/favorites.
+- Favorites count badge.
+- Profile summary fields for name, email, and phone.
+- Dashboard message area for success/error feedback.
+- Quick dashboard login/sync button.
+- Dashboard appointment self-service note.
+- Booking reschedule modal.
+- Client-side booking reschedule flow.
+- Reschedule date selection.
+- Reschedule stylist selection.
+- Reschedule time-slot availability check.
+- Slot re-locking during reschedule.
+- Booking cancellation flow.
+- Client dashboard login history list.
+- Login history count badge.
+- Login history displays recent security activity for the account.
+- Login history includes status, method, device/browser, and location labels.
+- Dashboard count badges and waitlist queue chips receive compact <=490px styling.
+
+Manage Account Features
+-----------------------
+- Profile update flow.
+- Name update support.
+- Email update support.
+- Phone update support.
+- Optional avatar upload support.
+- Password change support.
+- Password reset action.
+- Password strength checks.
+- Theme preference persistence.
+- Font size preference persistence.
+- Accessibility preference persistence.
+- Notification preference persistence.
+- Account deletion confirmation flow.
+- Account security-change audit support.
+
+Reviews Features
+----------------
+- Public testimonials/reviews section.
+- Realtime Firestore review feed.
+- Fallback testimonials dataset.
+- Public feed shows approved reviews only.
+- Reviews summary/average display.
+- Review sorting controls: featured, newest, highest rated.
+- View All Reviews / View Less Reviews controls.
+- Auth-gated review submission.
+- Review submission gate for non-authenticated users.
+- Review auth hints for login-required actions.
+- Reviews are created/updated as pending for moderation.
+- Review abuse reporting increments reportsCount.
+- Local review draft/profanity-related storage keys.
+- Review edit tracking through backend automation.
+- Review rate-limit update through backend automation.
+- Review/auth badges are tuned for compact high-contrast display on <=490px screens.
+
+Blog Features
+-------------
+- Public blog section.
+- Realtime Firestore blog rendering.
+- Fallback blog content when Firestore content is unavailable.
+- Blog cards with title, excerpt, image, publish date, read time, and read-more URL.
+- Default visible blog count with show-all toggle behavior.
+- Admin-managed blog content appears on the public site in realtime.
+
+Contact Features
+----------------
+- Public contact section.
+- Firestore-backed contact form/message pipeline.
+- New contact submissions are stored with status: new.
+- Contact success messaging in UI.
+- Contact rate-limit update through backend automation.
+- Contact submissions appear in admin Messages section.
+
+Admin Console Access Features
+-----------------------------
+- Dedicated admin page at public/admin.html.
+- Firebase admin login with email/password.
+- Authorized admin access record check through adminUsers/{uid}.
+- Active/inactive admin gating.
+- Admin role support: super_admin and admin.
+- Permission flags:
+  - canManageAdmins
+  - canManageBookings
+  - canManageContent
+  - canManageSecurity
+- Scoped admin UI rendering based on permission flags.
+- Admin section tabs are hidden/blocked based on access permissions.
+- Admin realtime listeners are permission-scoped and stop/not-start when the signed-in admin lacks the required section permission.
+- Admin password visibility toggle.
+- Admin user state display.
+- Admin logout support.
+- Back-to-homepage link.
+- Confirmation modal for destructive actions.
+- Admin status badges, role badges, and security filter notes are compacted for <=490px screens.
+
+Admin Bookings Features
+-----------------------
+- Realtime bookings list.
+- Booking status cards/counters for total, pending, confirmed, waitlisted, completed, and cancelled.
+- Booking detail rendering.
+- Lifecycle-safe booking actions based on current status.
+- Pending bookings expose Confirm and Cancel + Release Slot.
+- Confirmed bookings expose Complete + Release Slot and Cancel + Release Slot.
+- Waitlisted bookings expose Move to Confirmed while complete/cancel release actions are disabled with workflow guidance.
+- Completed/cancelled terminal bookings show no quick lifecycle actions.
+- Cancel + Release Slot action uses protected backend callable slot-release workflow.
+- Complete + Release Slot action uses protected backend callable slot-release workflow.
+- Backend slot release verifies the slot lock belongs to the booking before deleting bookingSlots/{slotId}.
+- Slot-release metadata can be written to booking docs, including releasedSlotId, slotReleasedAt, slotReleaseReason, slotReleaseSource, and slotReleasedBy.
+- Admin completion/cancellation slot-release actions are recorded in adminAuditLogs.
+- Booking special request display.
+- Booking inspiration image link display.
+- Booking customer name, service, stylist, date, time, email, and phone display.
+- Booking status normalization for equivalent status values.
+
+Admin Schedule Features
+-----------------------
+- Schedule tab in admin console.
+- Calendar-like schedule board.
+- Day view.
+- Week view.
+- Previous/next navigation.
+- Today button.
+- Schedule date range label.
+- Status color legend.
+- Bookings grouped into morning, afternoon, evening, and late-night buckets.
+- Clickable schedule events.
+- Selected booking detail panel.
+- Previous/next booking navigation within schedule details.
+- Lifecycle-safe quick actions from schedule details:
+  - Pending: Confirm or Cancel + Release Slot
+  - Confirmed: Complete + Release Slot or Cancel + Release Slot
+  - Waitlisted: Move to Confirmed; release actions disabled until confirmed or handled from Waitlist
+  - Completed/cancelled: no quick lifecycle action
+
+Admin Gallery Features
+----------------------
+- Gallery management tab.
+- Create gallery style entries.
+- Edit gallery style entries.
+- Delete gallery style entries.
+- Existing gallery style list.
+- Open live gallery link.
+- Service-category selection for gallery entries.
+- Category-specific gallery fields.
+- Braids-specific fields such as length, size, hair type, and style type.
+- Hair-service-specific fields such as service type, technique/finish, client hair length/volume, and products/color mix used.
+- Stylist name field.
+- Time taken field.
+- Price range field.
+- After/final style image upload.
+- Optional before image upload.
+- Before & After badge support.
+- Featured Trending flag.
+- Featured Most Booked flag.
+- Live preview card while editing/creating gallery entries.
+- Publish checklist with completion count/progress meter.
+- Cloudinary upload support.
+
+Admin Blog Features
+-------------------
+- Blogs management tab.
+- Create blog posts.
+- Edit blog posts.
+- Delete blog posts.
+- Existing blogs list.
+- Open live blog link.
+- Blog title field.
+- Blog excerpt/short description field.
+- Blog read time field.
+- Blog publish date field.
+- Blog read-more URL field.
+- Blog image upload field.
+- Blog pagination/scroll controls with previous/next buttons.
+
+Admin Reviews Features
+----------------------
+- Reviews moderation tab.
+- Realtime review moderation queue.
+- Review counters for total, pending, approved, and rejected.
+- Review sorting controls: featured, newest, highest rated.
+- Approve review action.
+- Reject review action.
+- Set review back to pending action.
+- Edit review action.
+- Reply to review action.
+- Feature review action.
+- Delete review action.
+- Basic local profanity/content check helper.
+- Admin-managed blocked-word list stored locally.
+- Review moderation tips card.
+- Open live reviews link.
+
+Admin Messages Features
+-----------------------
+- Messages/contact inbox tab.
+- Realtime contact messages list.
+- Message counters for total, new, read, and resolved.
+- Message status filter controls for New, Read, and Resolved.
+- Message filter active state uses aria-pressed for accessible state reporting.
+- Clicking the active status filter toggles back to all messages.
+- Filtered empty-state copy explains when no messages match the selected status.
+- Message sorting controls:
+  - Newest
+  - Oldest
+  - New status first
+  - Unresolved first
+  - Name A-Z
+- Message status transitions:
+  - new
+  - read
+  - resolved
+- Contact message deletion support.
+
+Admin Services Features
+-----------------------
+- Services tab for service-category visibility management.
+- Realtime service-category controls from siteSettings/serviceCategories.
+- Category ON/OFF toggles.
+- Active services group.
+- Inactive services group.
+- Category counters.
+- Save Category Settings action.
+- Saves boolean category flags to Firestore.
+- Stores updatedAt and updatedBy metadata.
+- Public website consumes settings live to update services, booking dropdown, and gallery/filter results.
+
+Admin Security Monitoring Features
+----------------------------------
+- Dedicated Security tab.
+- Realtime login activity monitoring from loginActivities.
+- Realtime session tracking using collectionGroup("sessions").
+- Realtime security alerts from securityAlerts.
+- Realtime account change history from accountChangeHistory.
+- Realtime user behavior/activity timeline from activityTimeline.
+- Security counters/widgets including:
+  - Total logins
+  - Successful logins
+  - Failed logins
+  - Suspicious events
+  - Locked accounts
+  - Repeated wrong passwords
+  - High-risk logins
+  - Online users
+  - Online sessions
+  - Multi-device users
+- Daily KPI widgets including:
+  - Today logins
+  - Failed attempts
+  - New registrations
+  - Returning users
+  - Provider mix
+- Login activity sorting:
+  - Newest
+  - Oldest
+  - Failed first
+  - Suspicious first
+- Login activity filters:
+  - Risk
+  - Date
+  - Date range
+  - Provider
+  - Device
+  - Known/anonymous user
+  - Country
+  - Status
+- Login activity search by email, username, or booking ID.
+- Clear all filters action.
+- CSV export for visible login activity rows.
+- Excel export for visible login activity rows.
+- Risk level display: low, medium, high.
+- Risk score display.
+- Trust score display.
+- Suspicious flags for repeated failures, rapid repeated logins, new device/browser, and country-change anomalies.
+- Lock indicators including lockUntil and failed-attempt windows.
+- Security alerts sorting by newest, oldest, high severity first, and open first.
+- Account changes sorting by newest, oldest, critical first, and change type.
+- Timeline sorting by newest, oldest, bookings first, reviews first, and contact first.
+- Session sorting by online first, last active newest, longest session, and multi-device first.
+
+Admin Security Incident Response Features
+-----------------------------------------
+- Inline response actions for linked users from security rows.
+- Temporary block action.
+- Force logout action.
+- Force password reset action.
+- Clear restrictions action.
+- Actions are backed by callable Cloud Function adminRestrictUserAccount.
+- Security actions are logged in adminSecurityActions.
+- User security restrictions can include blockedUntilMs, passwordResetRequired, and cleared metadata.
+
+Admin User Delegation Features
+------------------------------
+- Dedicated Admins section for super-admin-managed delegation.
+- List admin users through callable backend function.
+- Create admin access records through callable backend function.
+- Update admin access records through callable backend function.
+- Manage role: super_admin or admin.
+- Manage active/inactive state.
+- Manage permissions:
+  - canManageAdmins
+  - canManageBookings
+  - canManageContent
+  - canManageSecurity
+- Admin search/filter state support.
+- Direct client writes to adminUsers are blocked by Firestore rules.
+- Admin create/update mutations are recorded in adminAuditLogs.
+
+Cloud Functions / Backend Automation Features
+---------------------------------------------
+- Firebase Cloud Functions v2 backend.
+- Node.js Cloud Functions implementation in functions/index.js.
+- Firestore triggers for booking, review, contact, slot, and timeline workflows.
+- Callable functions for signed uploads, security logging, account auditing, security response actions, admin delegation, waitlist booking conversion, and admin booking slot-release actions.
+- Scheduled WhatsApp reminder function.
+- Secret-managed integrations for Cloudinary, Resend, and WhatsApp Cloud API.
+- Nairobi timezone-aware booking reminder calculations.
+
+Cloud Function List
+-------------------
+- createCloudinarySignedUpload: creates signed Cloudinary upload parameters.
+- sendBookingConfirmationEmail: sends booking confirmation emails through Resend.
+- sendBookingConfirmationWhatsApp: sends WhatsApp booking confirmation on booking creation.
+- sendUpcomingBookingWhatsAppReminders: scheduled reminder job that runs every 15 minutes and targets confirmed bookings roughly 2 hours away.
+- initializeBookingSystemFields: initializes/defaults booking system fields.
+- updateReviewRateLimit: updates per-user review cooldown data.
+- trackReviewEdited: tracks review edits.
+- updateContactRateLimit: updates per-user contact cooldown data.
+- trackBookingCreated: writes booking-created timeline/audit activity.
+- trackBookingCanceled: writes booking-canceled timeline/audit activity.
+- notifyWaitlistOnSlotOpen: notifies waitlisted clients when a booking slot is released.
+- logLoginActivity: logs login telemetry, risk scoring, anomaly flags, and optional alert triggers.
+- logAccountSecurityChange: logs account security changes and optional alerts.
+- adminRestrictUserAccount: performs admin security actions such as temporary block, force logout, force password reset, and clear restrictions.
+- adminCreateAdminUser: creates admin access records for super admins.
+- adminUpdateAdminUser: updates admin access records for super admins.
+- adminListAdminUsers: returns admin-access directory/listing data.
+- adminMoveWaitlistBookingToConfirmed: safely converts a linked waitlisted booking to confirmed and locks the preferred slot when available.
+- adminUpdateBookingStatusAndReleaseSlot: safely completes/cancels bookings, releases matching slot locks, writes release metadata, and records admin audit logs.
+
+Notification Features
+---------------------
+- Email booking confirmations via Resend.
+- WhatsApp booking confirmations via WhatsApp Cloud API.
+- Scheduled WhatsApp appointment reminders about 2 hours before confirmed bookings.
+- WhatsApp reminder scheduler runs every 15 minutes.
+- WhatsApp phone-number normalization for Kenyan/local phone formats.
+- Notification status fields can be written back to booking documents.
+- Waitlist notification support when slots open.
+
+Security, Rules, and Data Protection Features
+---------------------------------------------
+- Firebase Authentication-enforced access model.
+- Firestore Security Rules file included.
+- Helper guards such as signed-in checks, admin checks, owner/admin checks, and super-admin checks.
+- Strict payload validation for create/update operations.
+- Changed-key validation for updates.
+- Booking owner update rules support constrained reschedule/cancel paths.
+- Public reads only where intended.
+- Public-readable approved reviews only.
+- Public-readable gallery/blog content where intended.
+- Public-readable booking slot availability where intended.
+- Waitlist create/read/update constraints.
+- rateLimits collection is internal and not client-readable/writeable.
+- adminUsers direct client create/update/delete is blocked.
+- adminAuditLogs are super-admin-readable only and client-write-blocked.
+- Security collections are server-written only:
+  - loginActivities
+  - securityAlerts
+  - accountChangeHistory
+  - activityTimeline
+- Admin-only security reads are enforced.
+- Session monitoring rules support admin collectionGroup("sessions") reads.
+- Client login activity history read access is scoped to owner/admin.
+
+Firestore Data Model / Collections
+----------------------------------
+- bookings
+- bookingSlots
+- waitlist
+- galleryStyles
+- blogs
+- reviews
+- users
+- users/{uid}/favorites
+- users/{uid}/sessions
+- contactMessages
+- rateLimits
+- adminUsers
+- adminAuditLogs
+- adminSecurityActions
+- loginActivities
+- securityAlerts
+- accountChangeHistory
+- activityTimeline
+- siteSettings/serviceCategories
+
+Technology and Integration Features
+-----------------------------------
+- HTML, CSS, and vanilla JavaScript frontend.
+- Public JavaScript runtime in public/JS/script.js.
+- Admin JavaScript runtime in public/JS/admin.js.
+- Shared stylesheet in public/CSS/style.css.
+- Firebase Hosting configuration.
+- Firebase Authentication using Email/Password and Anonymous providers.
+- Firebase Cloud Firestore realtime listeners.
+- Firebase Cloud Functions backend.
+- Firebase App Check configuration support in web apps.
+- Cloudinary image upload integration.
+- Resend email API integration.
+- WhatsApp Cloud API integration.
+- Font Awesome icons.
+- Google Fonts integration.
+
+Deployment and QA Features
+--------------------------
+- Firebase deployment configuration files included.
+- Firestore rules deployment support.
+- Functions deployment support.
+- Hosting deployment support.
+- Public and admin pages can be tested locally/static or through Firebase Hosting.
+- README includes manual end-to-end QA guide.
+- QA scenarios cover public splash/site, auth/dashboard, booking/slot locking, waitlist, reviews/moderation, contact/message filters, admin content, backend automation, security tab, service-category visibility, login-history, and admin delegation.
+- QA guide includes very-small-screen chip/badge visual regression checks at 490px, 390px, and 360px widths.
+- Automated coverage includes JavaScript syntax checks, Vitest unit tests, Firestore Rules emulator tests, Playwright E2E tests, and Functions Jest tests.
+
+Project Documentation Features
+------------------------------
+- Main README at public/README.md.
+- README documents project summary, latest changes, tech stack, project structure, runtime architecture, features, Firestore data model, security model, Cloud Functions, local setup, deployment, testing/QA, important notes, and troubleshooting.
+- This FEATURES.txt file provides a dedicated plain-text inventory of all major implemented features.

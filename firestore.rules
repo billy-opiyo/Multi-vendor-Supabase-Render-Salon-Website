@@ -1,0 +1,727 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function adminDocPath() {
+      return /databases/$(database)/documents/adminUsers/$(request.auth.uid);
+    }
+
+    function adminDocExists() {
+      return isSignedIn() && exists(adminDocPath());
+    }
+
+    function adminDocData() {
+      return get(adminDocPath()).data;
+    }
+
+    function isAdminRole(roleValue) {
+      return roleValue is string
+        && roleValue in ['super_admin', 'admin'];
+    }
+
+    function isAdmin() {
+      return adminDocExists()
+        && adminDocData().active == true
+        && isAdminRole(adminDocData().role);
+    }
+
+    function isSuperAdmin() {
+      return isAdmin() && adminDocData().role == 'super_admin';
+    }
+
+    function hasAdminPermission(permissionKey) {
+      return isSuperAdmin()
+        || (
+          isAdmin()
+          && adminDocData().permissions is map
+          && permissionKey is string
+          && permissionKey in adminDocData().permissions
+          && adminDocData().permissions[permissionKey] == true
+        );
+    }
+
+    function isOwnerOrAdmin(ownerUid) {
+      return isSignedIn() && (
+        request.auth.uid == ownerUid ||
+        isAdmin()
+      );
+    }
+
+    function bookingEmailMatchesSignedInUser() {
+      return isSignedIn()
+        && request.auth.token.email is string
+        && request.auth.token.email != ''
+        && resource.data.email is string
+        && resource.data.email != ''
+        && resource.data.email == request.auth.token.email;
+    }
+
+    function bookingOwnerMatchesSignedInUser() {
+      return isSignedIn()
+        && (
+          resource.data.uid == request.auth.uid
+          || (
+            bookingEmailMatchesSignedInUser()
+            && request.resource.data.uid == request.auth.uid
+          )
+        );
+    }
+
+    function bookingSlotLinkedBookingMatchesSignedInUser() {
+      return isSignedIn()
+        && resource.data.bookingId is string
+        && resource.data.bookingId != ''
+        && exists(/databases/$(database)/documents/bookings/$(resource.data.bookingId))
+        && (
+          get(/databases/$(database)/documents/bookings/$(resource.data.bookingId)).data.uid == request.auth.uid
+          || (
+            request.auth.token.email is string
+            && request.auth.token.email != ''
+            && get(/databases/$(database)/documents/bookings/$(resource.data.bookingId)).data.email is string
+            && get(/databases/$(database)/documents/bookings/$(resource.data.bookingId)).data.email != ''
+            && get(/databases/$(database)/documents/bookings/$(resource.data.bookingId)).data.email == request.auth.token.email
+          )
+        );
+    }
+
+    function reviewRateLimitDocPath() {
+      return /databases/$(database)/documents/rateLimits/$(request.auth.uid);
+    }
+
+    function contactRateLimitDocPath() {
+      return /databases/$(database)/documents/rateLimits/$(request.auth.uid);
+    }
+
+    function reviewRateLimitAllowsCreate() {
+      return !exists(reviewRateLimitDocPath())
+        || !(get(reviewRateLimitDocPath()).data.reviewCooldownUntil is timestamp)
+        || get(reviewRateLimitDocPath()).data.reviewCooldownUntil <= request.time;
+    }
+
+    function contactRateLimitAllowsCreate() {
+      return !exists(contactRateLimitDocPath())
+        || !(get(contactRateLimitDocPath()).data.contactCooldownUntil is timestamp)
+        || get(contactRateLimitDocPath()).data.contactCooldownUntil <= request.time;
+    }
+
+    function bookingCreateHasAllowedKeys() {
+      return request.resource.data.keys().hasOnly([
+        'firstName',
+        'lastName',
+        'email',
+        'phone',
+        'service',
+        'stylist',
+        'stylistKey',
+        'date',
+        'time',
+        'slotId',
+        'notes',
+        'inspirationImageUrl',
+        'status',
+        'preferredSlotId',
+        'waitlistId',
+        'bookingType',
+        'isWaitlisted',
+        'waitlistStatus',
+        'uid',
+        'createdAt',
+        'updatedAt'
+      ]);
+    }
+
+    function bookingCreateCommonFieldsAreValid() {
+      return bookingCreateHasAllowedKeys()
+        && request.resource.data.firstName is string
+        && request.resource.data.lastName is string
+        && request.resource.data.email is string
+        && request.resource.data.phone is string
+        && request.resource.data['service'] is string
+        && request.resource.data.date is string
+        && request.resource.data.time is string
+        && request.resource.data.slotId is string
+        && request.resource.data.firstName != ''
+        && request.resource.data.lastName != ''
+        && request.resource.data.email != ''
+        && request.resource.data.phone != ''
+        && request.resource.data['service'] != ''
+        && request.resource.data.date != ''
+        && request.resource.data.time != ''
+        && request.resource.data.uid == request.auth.uid;
+    }
+
+    function bookingCreateConfirmedSlotIsValid() {
+      return request.resource.data.slotId != ''
+        && request.resource.data.status in ['pending', 'confirmed'];
+    }
+
+    function bookingCreateWaitlistIsValid() {
+      return request.resource.data.status == 'waitlisted'
+        && request.resource.data.slotId == ''
+        && request.resource.data.preferredSlotId is string
+        && request.resource.data.preferredSlotId != ''
+        && request.resource.data.waitlistId is string
+        && request.resource.data.waitlistId != ''
+        && request.resource.data.bookingType == 'waitlist'
+        && request.resource.data.isWaitlisted == true
+        && request.resource.data.waitlistStatus == 'waiting';
+    }
+
+    function bookingCreateIsValid() {
+      return bookingCreateCommonFieldsAreValid()
+        && (
+          bookingCreateConfirmedSlotIsValid()
+          || bookingCreateWaitlistIsValid()
+        );
+    }
+
+    function bookingSlotLockPayloadIsValid() {
+      return request.resource.data.keys().hasOnly([
+          'taken',
+          'date',
+          'time',
+          'stylistKey',
+          'bookingId',
+          'uid',
+          'createdAt',
+          'updatedAt'
+        ])
+        && request.resource.data.taken == true
+        && request.resource.data.date is string
+        && request.resource.data.time is string
+        && request.resource.data.bookingId is string
+        && request.resource.data.date != ''
+        && request.resource.data.time != ''
+        && request.resource.data.bookingId != ''
+        && request.resource.data.uid == request.auth.uid;
+    }
+
+    function bookingOwnerUpdateHasAllowedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'date',
+        'time',
+        'stylist',
+        'stylistKey',
+        'slotId',
+        'status',
+        'uid',
+        'updatedAt'
+      ]);
+    }
+
+    function bookingOwnerRescheduleIsValid() {
+      let affected = request.resource.data.diff(resource.data).affectedKeys();
+      return affected.hasAny(['date', 'time', 'slotId'])
+        && affected.hasAny(['date', 'time', 'stylistKey'])
+        && affected.hasAny(['slotId'])
+        && request.resource.data.date is string
+        && request.resource.data.time is string
+        && request.resource.data.stylist is string
+        && request.resource.data.stylistKey is string
+        && request.resource.data.slotId is string
+        && request.resource.data.date != ''
+        && request.resource.data.time != ''
+        && request.resource.data.slotId != ''
+        && request.resource.data.slotId != resource.data.slotId
+        && request.resource.data.status in ['pending', 'confirmed']
+        && resource.data.status in ['pending', 'confirmed']
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.uid == request.auth.uid;
+    }
+
+    function bookingOwnerCancelIsValid() {
+      let affected = request.resource.data.diff(resource.data).affectedKeys();
+      return !affected.hasAny(['date', 'time', 'slotId'])
+        && affected.hasOnly(['status', 'uid', 'updatedAt'])
+        && affected.hasAny(['status'])
+        && request.resource.data.status == 'cancelled'
+        && request.resource.data.uid == request.auth.uid
+        && resource.data.status in ['pending', 'confirmed', 'waitlisted'];
+    }
+
+    function bookingOwnerUpdateIsValid() {
+      let affected = request.resource.data.diff(resource.data).affectedKeys();
+      let touchesSlotFields = affected.hasAny(['date', 'time', 'stylist', 'stylistKey', 'slotId']);
+      return isSignedIn()
+        && bookingOwnerMatchesSignedInUser()
+        && bookingOwnerUpdateHasAllowedKeys()
+        && (bookingOwnerRescheduleIsValid() || bookingOwnerCancelIsValid())
+        && (
+          touchesSlotFields
+            ? !affected.hasAny(['status']) || request.resource.data.status == 'confirmed'
+            : true
+        );
+    }
+
+    function bookingStatusTransitionAllowed(fromStatus, toStatus) {
+      return (
+        fromStatus == toStatus
+      ) || (
+        fromStatus == 'pending' && toStatus in ['confirmed', 'cancelled']
+      ) || (
+        fromStatus == 'confirmed' && toStatus in ['completed', 'cancelled']
+      ) || (
+        fromStatus == 'waitlisted' && toStatus in ['pending', 'confirmed', 'cancelled']
+      ) || (
+        fromStatus == 'completed' && toStatus == 'completed'
+      ) || (
+        fromStatus == 'cancelled' && toStatus == 'cancelled'
+      );
+    }
+
+    function adminBasicBookingStatusUpdateIsValid() {
+      let affected = request.resource.data.diff(resource.data).affectedKeys();
+      return affected.hasOnly(['status', 'updatedAt'])
+        && affected.hasAny(['status'])
+        && request.resource.data.status in ['pending', 'confirmed', 'completed', 'cancelled', 'waitlisted']
+        && bookingStatusTransitionAllowed(resource.data.status, request.resource.data.status);
+    }
+
+    function adminWaitlistBookingSyncUpdateIsValid() {
+      let affected = request.resource.data.diff(resource.data).affectedKeys();
+      return resource.data.status == 'waitlisted'
+        && affected.hasOnly([
+          'status',
+          'updatedAt',
+          'waitlistStatus',
+          'waitlistAdminUpdatedBy',
+          'waitlistUpdatedAt',
+          'bookingType',
+          'isWaitlisted',
+          'cancelledAt',
+          'cancelledBy'
+        ])
+        && request.resource.data.status in ['waitlisted', 'cancelled']
+        && request.resource.data.waitlistStatus in [
+          'waiting',
+          'notified',
+          'contacted',
+          'booked',
+          'cancelled',
+          'notification_failed'
+        ]
+        && request.resource.data.waitlistAdminUpdatedBy is string
+        && request.resource.data.waitlistAdminUpdatedBy != ''
+        && bookingStatusTransitionAllowed(resource.data.status, request.resource.data.status)
+        && (
+          request.resource.data.status == 'cancelled'
+            ? request.resource.data.isWaitlisted == false
+              && request.resource.data.cancelledBy is string
+              && request.resource.data.cancelledBy != ''
+            : request.resource.data.bookingType == 'waitlist'
+              && request.resource.data.isWaitlisted == true
+        );
+    }
+
+    function adminBookingUpdateIsValid() {
+      return adminBasicBookingStatusUpdateIsValid()
+        || adminWaitlistBookingSyncUpdateIsValid();
+    }
+
+    match /bookings/{bookingId} {
+      allow create: if isSignedIn() && bookingCreateIsValid();
+      allow read: if isSignedIn() && (
+        resource.data.uid == request.auth.uid ||
+        (
+          request.auth.token.email is string
+          && request.auth.token.email != ''
+          && resource.data.email is string
+          && resource.data.email != ''
+          && resource.data.email == request.auth.token.email
+        ) ||
+        hasAdminPermission('canManageBookings')
+      );
+
+      allow update: if (hasAdminPermission('canManageBookings') && adminBookingUpdateIsValid()) || bookingOwnerUpdateIsValid();
+
+      allow delete: if false;
+    }
+ 
+    match /bookingSlots/{slotId} {
+      allow create: if isSignedIn() && bookingSlotLockPayloadIsValid();
+
+      // Needed for realtime availability query in the public booking form.
+      allow read: if true;
+
+      // Users may only turn an existing untaken placeholder slot into their own lock.
+      allow update: if isSignedIn()
+        && resource.data.taken != true
+        && bookingSlotLockPayloadIsValid();
+      allow delete: if hasAdminPermission('canManageBookings')
+        || (isSignedIn() && resource.data.uid == request.auth.uid)
+        || bookingSlotLinkedBookingMatchesSignedInUser();
+    }
+
+    match /waitlist/{waitlistId} {
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasOnly([
+          'firstName',
+          'lastName',
+          'email',
+          'phone',
+          'service',
+          'stylist',
+          'stylistKey',
+          'preferredDate',
+          'preferredTime',
+          'preferredSlotId',
+          'notes',
+          'inspirationImageUrl',
+          'status',
+          'notifiedAt',
+          'uid',
+          'createdAt',
+          'updatedAt'
+        ])
+        && request.resource.data.firstName is string
+        && request.resource.data.lastName is string
+        && request.resource.data.email is string
+        && request.resource.data.phone is string
+        && request.resource.data['service'] is string
+        && request.resource.data.stylist is string
+        && request.resource.data.stylistKey is string
+        && request.resource.data.preferredDate is string
+        && request.resource.data.preferredTime is string
+        && request.resource.data.preferredSlotId is string
+        && request.resource.data.notes is string
+        && request.resource.data.inspirationImageUrl is string
+        && request.resource.data.status == 'waiting'
+        && request.resource.data.notifiedAt == null
+        && request.resource.data.uid is string
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.preferredDate != ''
+        && request.resource.data.preferredTime != ''
+        && request.resource.data.preferredSlotId != '';
+
+      allow read: if isSignedIn() && (
+        resource.data.uid == request.auth.uid ||
+        hasAdminPermission('canManageBookings')
+      );
+
+      allow update: if hasAdminPermission('canManageBookings') || (
+        isSignedIn()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'status',
+          'updatedAt'
+        ])
+        && resource.data.status == 'waiting'
+        && request.resource.data.status == 'cancelled'
+      );
+
+      allow delete: if false;
+    }
+
+    match /rateLimits/{rateLimitId} {
+      allow read, create, update, delete: if false;
+    }
+
+    match /siteSettings/{settingId} {
+      allow read: if true;
+      allow create, update, delete: if hasAdminPermission('canManageContent');
+    }
+
+    match /galleryStyles/{styleId} {
+      // Public gallery is visible to everyone (including unauthenticated clients).
+      allow read: if true;
+
+      // Only admin can create/update/delete gallery content.
+      allow create, update, delete: if hasAdminPermission('canManageContent');
+    }
+
+    match /blogs/{blogId} {
+      // Public blog cards are visible to everyone.
+      allow read: if true;
+
+      // Only admins can create/update/delete blog entries.
+      allow create, update, delete: if hasAdminPermission('canManageContent');
+    }
+
+    match /reviews/{reviewId} {
+      // Public can only see approved reviews; admins can see all.
+      allow read: if (
+        resource.data.status == 'approved'
+      ) || isAdmin() || (
+        isSignedIn() && resource.data.uid == request.auth.uid
+      );
+
+      // Public users can submit reviews, but only as pending.
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasOnly([
+          'name',
+          'avatar',
+          'text',
+          'rating',
+          'source',
+          'service',
+          'photoUrl',
+          'adminReply',
+          'reportsCount',
+          'verifiedBooking',
+          'status',
+          'featured',
+          'uid',
+          'bookingId',
+          'createdAt',
+          'approvedBy',
+          'approvedAt',
+          'updatedAt'
+        ])
+        && request.resource.data.name is string
+        && request.resource.data.text is string
+        && request.resource.data.source is string
+        && request.resource.data.status == 'pending'
+        && request.resource.data.featured == false
+        && request.resource.data.adminReply == ''
+        && request.resource.data.reportsCount == 0
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.name.size() >= 2
+        && request.resource.data.name.size() <= 80
+        && request.resource.data.text.size() >= 10
+        && request.resource.data.text.size() <= 800
+        && request.resource.data.rating in [1, 2, 3, 4, 5]
+        && (
+          !request.resource.data.keys().hasAny(['avatar'])
+          || request.resource.data.avatar is string
+        )
+        && (
+          !request.resource.data.keys().hasAny(['service'])
+          || request.resource.data['service'] is string
+        )
+        && (
+          !request.resource.data.keys().hasAny(['photoUrl'])
+          || request.resource.data.photoUrl is string
+        )
+        && (
+          !request.resource.data.keys().hasAny(['verifiedBooking'])
+          || request.resource.data.verifiedBooking is bool
+        )
+        && (
+          !request.resource.data.keys().hasAny(['bookingId'])
+          || request.resource.data.bookingId is string
+        )
+        && reviewRateLimitAllowsCreate();
+
+      // Admins can fully moderate reviews.
+      allow update: if hasAdminPermission('canManageContent')
+        // Owners can edit their own pending reviews (typo fixes UX).
+        || (
+          isSignedIn()
+          && resource.data.uid == request.auth.uid
+          && resource.data.status == 'pending'
+          && request.resource.data.uid == resource.data.uid
+          && request.resource.data.status == 'pending'
+          && request.resource.data.featured == false
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+            'name',
+            'text',
+            'rating',
+            'service',
+            'photoUrl',
+            'updatedAt'
+          ])
+        )
+        // Lightweight moderation: signed-in users can report abuse.
+        || (
+          isSignedIn()
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+            'reportsCount',
+            'updatedAt'
+          ])
+          && request.resource.data.reportsCount == resource.data.reportsCount + 1
+        );
+
+      // Only admins may delete reviews.
+      allow delete: if hasAdminPermission('canManageContent');
+    }
+
+    match /users/{userId} {
+      allow create: if isSignedIn()
+        && userId == request.auth.uid
+        && request.resource.data.keys().hasOnly([
+          'displayName',
+          'email',
+          'provider',
+          'phone',
+          'updatedAt',
+          'createdAt'
+        ])
+        && request.resource.data.displayName is string
+        && request.resource.data.email is string
+        && request.resource.data.provider is string
+        && request.resource.data.phone is string;
+
+      allow read: if hasAdminPermission('canManageSecurity') || (
+        isSignedIn() && userId == request.auth.uid
+      );
+
+      allow update: if isSignedIn()
+        && userId == request.auth.uid
+        && request.resource.data.keys().hasOnly([
+          'displayName',
+          'email',
+          'provider',
+          'phone',
+          'updatedAt',
+          'createdAt'
+        ])
+        && request.resource.data.displayName is string
+        && request.resource.data.email is string
+        && request.resource.data.provider is string
+        && request.resource.data.phone is string;
+
+      allow delete: if false;
+
+      match /favorites/{favoriteId} {
+        allow read: if isSignedIn() && userId == request.auth.uid;
+
+        allow create, update: if isSignedIn()
+          && userId == request.auth.uid
+          && request.resource.data.keys().hasOnly([
+            'id',
+            'styleName',
+            'styleType',
+            'stylistName',
+            'imageUrl',
+            'savedAt'
+          ])
+          && request.resource.data.id is string
+          && request.resource.data.styleName is string
+          && request.resource.data.styleType is string
+          && request.resource.data.stylistName is string
+          && request.resource.data.imageUrl is string
+          && request.resource.data.id.size() >= 1
+          && request.resource.data.id.size() <= 160
+          && request.resource.data.styleName.size() >= 1
+          && request.resource.data.styleName.size() <= 140
+          && request.resource.data.styleType.size() <= 120
+          && request.resource.data.stylistName.size() <= 120
+          && request.resource.data.imageUrl.size() <= 1000;
+
+        allow delete: if isSignedIn() && userId == request.auth.uid;
+      }
+    }
+
+    match /userSessions/{userId} {
+      // Session container docs are private to owner/admin.
+      allow read: if isOwnerOrAdmin(userId);
+      allow create, update, delete: if false;
+
+      match /sessions/{sessionId} {
+        // Owner can maintain their own presence; admin can audit for security.
+        allow read: if isOwnerOrAdmin(userId);
+
+        allow create, update: if isSignedIn()
+          && request.auth.uid == userId
+          && request.resource.data.uid == userId;
+
+        allow delete: if isOwnerOrAdmin(userId);
+      }
+    }
+
+    // Explicit collection-group support for admin session monitoring query:
+    // db.collectionGroup("sessions")
+    match /{document=**}/sessions/{sessionId} {
+      allow read: if hasAdminPermission('canManageSecurity');
+      allow create, update, delete: if false;
+    }
+
+    match /contactMessages/{messageId} {
+      // Public contact submissions use anonymous Firebase Auth sessions so
+      // server-written rateLimits/{uid} cooldowns can be enforced without reCAPTCHA.
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasOnly([
+          'name',
+          'email',
+          'subject',
+          'message',
+          'status',
+          'uid',
+          'createdAt',
+          'updatedAt'
+        ])
+        && request.resource.data.name is string
+        && request.resource.data.email is string
+        && request.resource.data.subject is string
+        && request.resource.data.message is string
+        && request.resource.data.status == 'new'
+        && request.resource.data.uid is string
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.name.size() >= 2
+        && request.resource.data.name.size() <= 120
+        && request.resource.data.email.size() >= 5
+        && request.resource.data.email.size() <= 160
+        && request.resource.data.subject.size() >= 2
+        && request.resource.data.subject.size() <= 200
+        && request.resource.data.message.size() >= 5
+        && request.resource.data.message.size() <= 3000
+        && contactRateLimitAllowsCreate();
+
+      // Admin only read/update/delete for contact inbox management.
+      allow read, delete: if hasAdminPermission('canManageContent');
+
+      allow update: if hasAdminPermission('canManageContent')
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'status',
+          'updatedAt'
+        ])
+        && request.resource.data.status in ['new', 'read', 'resolved'];
+    }
+
+    match /loginActivities/{activityId} {
+      // Security logs are server-written only (Cloud Functions using Admin SDK bypass rules).
+      allow create, update, delete: if false;
+
+      // Admins can read all login activity; users can read only their own entries.
+      allow read: if hasAdminPermission('canManageSecurity') || (
+        isSignedIn() && resource.data.uid == request.auth.uid
+      );
+    }
+
+    match /securityAlerts/{alertId} {
+      // Alerts are server-generated only.
+      allow create, update, delete: if false;
+
+      // Admin security dashboard can read alerts.
+      allow read: if hasAdminPermission('canManageSecurity');
+    }
+
+    match /accountChangeHistory/{changeId} {
+      // History entries are server-generated only.
+      allow create, update, delete: if false;
+
+      // Admin security dashboard can read account history events.
+      allow read: if hasAdminPermission('canManageSecurity');
+    }
+
+    match /activityTimeline/{timelineId} {
+      // Timeline entries are server-generated only.
+      allow create, update, delete: if false;
+
+      // Admin security dashboard can read timeline events.
+      allow read: if hasAdminPermission('canManageSecurity');
+    }
+
+    match /adminUsers/{userId} {
+      // Allow signed-in users to read only their own admin access record
+      // (used by frontend to determine if panel access should unlock).
+      // Super admins may also read all admin access records for oversight.
+      allow read: if (isSignedIn() && userId == request.auth.uid) || isSuperAdmin();
+
+      // Admin-role records are server-managed only via Cloud Functions/Admin SDK.
+      // Client SDK writes are fully blocked (including super admins).
+      allow create, update, delete: if false;
+    }
+
+    match /adminAuditLogs/{logId} {
+      // Audit entries are server-generated only.
+      allow create, update, delete: if false;
+
+      // Only super admins can read full admin delegation audit trails.
+      allow read: if isSuperAdmin();
+    }
+  }
+}
