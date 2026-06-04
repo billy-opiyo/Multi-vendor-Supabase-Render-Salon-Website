@@ -1,3 +1,5 @@
+# Render deploys the backend API/functions only.
+# The static frontend is hosted separately on Vercel.
 services:
   - type: web
     name: salon-shop-render-api
@@ -34,14 +36,3 @@ services:
         sync: false
       - key: CLOUDINARY_UPLOAD_FOLDER
         sync: false
-
-  - type: web
-    name: salon-shop-static-site
-    env: static
-    rootDir: .
-    plan: free
-    buildCommand: echo "Static site - no build required"
-    staticPublishPath: public
-    envVars:
-      - key: NODE_VERSION
-        value: 22

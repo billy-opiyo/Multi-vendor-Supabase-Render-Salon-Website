@@ -20,10 +20,10 @@
 	const supabaseConfig = {
 		// Public values only. Replace after creating the new Supabase project.
 		// Never place SUPABASE_SERVICE_ROLE_KEY in frontend code.
-		url: "https://YOUR_SUPABASE_PROJECT_REF.supabase.co",
+		url: "https://jcxqvbhlexlwbpdtqxgv.supabase.co",
 		anonKey: "sb_publishable_Jec9opB4Cqm8sv41GaaHBg_hlXm0iC1",
 	}
-	const renderBackendUrl = ""
+	const renderBackendUrl = "https://salon-shop-render-api.onrender.com"
 
 	const businessName = "Royal Braids"
 	const businessSlug = "royal-braids"

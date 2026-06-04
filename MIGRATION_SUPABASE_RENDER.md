@@ -16,7 +16,7 @@ public/JS/supabase-client.js            # Browser Supabase + Render API bridge
 server/                                # Render Node/Express API scaffold
 server/.env.example                    # Render/local backend env template
 supabase/migrations/*.sql              # Initial Supabase schema draft
-render.yaml                            # Render blueprint for API + static frontend
+render.yaml                            # Render backend API service only
 .env.example                           # Public config reminder/template
 ```
 
@@ -62,6 +62,7 @@ Only `SUPABASE_URL` and `SUPABASE_ANON_KEY` are public-safe. Never expose `SUPAB
 In Supabase Dashboard → SQL Editor, run:
 
 ```text
+copy everything in this file and paste them in the sql editor +New query then click Run
 supabase/migrations/20260604060000_initial_schema.sql
 ```
 
@@ -118,9 +119,24 @@ and set the deployed Render API URL after the backend is deployed:
 const renderBackendUrl = "https://YOUR_RENDER_API_SERVICE.onrender.com"
 ```
 
-### 6. Deploy to Render
+### 6. Deploy backend API to Render
 
-Use `render.yaml` as the blueprint. Add the backend environment variables in Render:
+Render is used for the backend API/functions only. The static frontend should be deployed separately on Vercel.
+
+In Render Dashboard, create a **Web Service** for the GitHub repo with:
+
+```text
+Name: salon-shop-render-api
+Runtime: Node
+Root Directory: server
+Build Command: npm install
+Start Command: npm start
+Health Check Path: /health
+```
+
+Alternatively, after `render.yaml` is pushed, Render's Blueprint flow can be used because it now defines only the backend API service.
+
+Add the backend environment variables in Render:
 
 ```text
 PUBLIC_SITE_URL
@@ -136,6 +152,8 @@ CLOUDINARY_API_KEY
 CLOUDINARY_API_SECRET
 CLOUDINARY_UPLOAD_FOLDER
 ```
+
+Set `PUBLIC_SITE_URL` and `CORS_ORIGINS` to the Vercel frontend URL after Vercel deployment. During local testing, include `http://localhost:5000`, `http://localhost:3000`, and `http://127.0.0.1:5000` as allowed origins.
 
 ## Migration strategy
 
