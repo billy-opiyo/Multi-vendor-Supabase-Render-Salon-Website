@@ -21,7 +21,7 @@
 		// Public values only. Replace after creating the new Supabase project.
 		// Never place SUPABASE_SERVICE_ROLE_KEY in frontend code.
 		url: "https://YOUR_SUPABASE_PROJECT_REF.supabase.co",
-		anonKey: "YOUR_SUPABASE_ANON_KEY",
+		anonKey: "sb_publishable_Jec9opB4Cqm8sv41GaaHBg_hlXm0iC1",
 	}
 	const renderBackendUrl = ""
 
