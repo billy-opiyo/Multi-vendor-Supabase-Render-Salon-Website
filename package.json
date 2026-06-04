@@ -2,10 +2,11 @@
 	"name": "salon-shop",
 	"version": "1.0.0",
 	"private": true,
-	"description": "Automated test tooling for the Royal Braids Salon Shop Firebase website.",
+	"description": "Automated test tooling for the Royal Braids Salon Shop Firebase-to-Supabase/Render migration website.",
 	"type": "commonjs",
 	"scripts": {
-		"check:js": "node --check public/client-config.js && node --check public/JS/splash.js && node --check public/JS/apply-client-config.js && node --check public/JS/theme-preset-preview.js && node --check public/JS/script.js && node --check public/JS/admin.js && node --check scripts/new-client.js && node --check functions/client-config.js && node --check functions/waitlist-action-messages.js && node --check functions/index.js",
+		"check:js": "node --check public/client-config.js && node --check public/JS/splash.js && node --check public/JS/apply-client-config.js && node --check public/JS/theme-preset-preview.js && node --check public/JS/supabase-client.js && node --check public/JS/script.js && node --check public/JS/admin.js && node --check scripts/new-client.js && node --check functions/client-config.js && node --check functions/waitlist-action-messages.js && node --check functions/index.js && npm --prefix server run check",
+		"check:render-api": "npm --prefix server run check",
 		"optimize:images": "node scripts/optimize-images.js",
 		"optimize:images:dry-run": "node scripts/optimize-images.js --dry-run",
 		"serve:test": "node scripts/test-static-server.js",

@@ -2,9 +2,10 @@
 // ------------------------------------------------------------
 // For a new client, edit this file instead of hunting through HTML/JS.
 // Safe to expose here: branding, contact details, public social links,
-// Firebase WEB config, public Cloudinary folder name.
-// Never put private API secrets here. Resend/WhatsApp/Cloudinary secrets
-// are set with Firebase Functions secrets; see CLIENT_AUTOMATION_START.md.
+// public Firebase/Supabase/Render config during the migration, and public
+// Cloudinary folder name. Never put private API secrets here. Resend,
+// WhatsApp, Cloudinary, and Supabase service-role secrets belong in server
+// environment variables; see MIGRATION_SUPABASE_RENDER.md.
 // ------------------------------------------------------------
 ;(function () {
 	const firebaseConfig = {
@@ -16,6 +17,13 @@
 		appId: "1:712913782427:web:e997553d71bd9a1f6a283e",
 		measurementId: "G-B6LVQBEN3G",
 	}
+	const supabaseConfig = {
+		// Public values only. Replace after creating the new Supabase project.
+		// Never place SUPABASE_SERVICE_ROLE_KEY in frontend code.
+		url: "https://YOUR_SUPABASE_PROJECT_REF.supabase.co",
+		anonKey: "YOUR_SUPABASE_ANON_KEY",
+	}
+	const renderBackendUrl = ""
 
 	const businessName = "Royal Braids"
 	const businessSlug = "royal-braids"
@@ -1804,9 +1812,17 @@
 
 		integrations: {
 			firebase: firebaseConfig,
+			supabase: supabaseConfig,
+			renderBackendUrl,
+			migrationTarget: {
+				database: "supabase",
+				backend: "render",
+				status: "scaffold",
+			},
 			cloudinaryFolder: cloudinaryGalleryFolder,
 			whatsappPublicUrl: whatsappUrl,
 			contactEmailProvider: "firebase-functions-resend",
+			nextContactEmailProvider: "render-api-resend",
 			firebaseSecretNames: {
 				resendApiKey: "RESEND_API_KEY",
 				resendFromEmail: "RESEND_FROM_EMAIL",
@@ -1830,6 +1846,8 @@
 
 		app: {
 			firebase: firebaseConfig,
+			supabase: supabaseConfig,
+			renderBackendUrl,
 			cloudinaryFolder: cloudinaryGalleryFolder,
 			businessName,
 			businessSlug,
