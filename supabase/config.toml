@@ -1,0 +1,41 @@
+# Supabase local development configuration for Phase 1.
+# This file is intentionally minimal and can be expanded after the Supabase CLI
+# is introduced into the active local workflow.
+
+project_id = "royal-braids-salon-rebuild"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed/phase_1_development_seed.sql"]
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:5173", "http://localhost:8080"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+
+[storage]
+enabled = true
+file_size_limit = "10MiB"
+
+[realtime]
+enabled = true
+
+[analytics]
+enabled = false
+
+[experimental]
+orioledb_version = ""
