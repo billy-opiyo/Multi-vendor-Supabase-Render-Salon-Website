@@ -1,0 +1,70 @@
+const path = require("node:path")
+
+const dotenv = require("dotenv")
+const { z } = require("zod")
+
+dotenv.config({ path: path.resolve(process.cwd(), ".env") })
+
+const envSchema = z
+	.object({
+		NODE_ENV: z
+			.enum(["development", "test", "production"])
+			.default("development"),
+		PORT: z.coerce.number().int().positive().default(4000),
+		SUPABASE_URL: z.string().url().optional(),
+		SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+		SUPABASE_ANON_KEY: z.string().min(1).optional(),
+		FRONTEND_ORIGIN: z
+			.string()
+			.min(1)
+			.default("http://localhost:3000,http://127.0.0.1:3000"),
+	})
+	.superRefine((value, ctx) => {
+		if (value.NODE_ENV === "test") {
+			return
+		}
+
+		if (!value.SUPABASE_URL) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ["SUPABASE_URL"],
+				message: "SUPABASE_URL is required outside test mode.",
+			})
+		}
+
+		if (!value.SUPABASE_SERVICE_ROLE_KEY) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ["SUPABASE_SERVICE_ROLE_KEY"],
+				message: "SUPABASE_SERVICE_ROLE_KEY is required outside test mode.",
+			})
+		}
+	})
+
+const parsedEnv = envSchema.safeParse(process.env)
+
+if (!parsedEnv.success) {
+	const formattedErrors = parsedEnv.error.issues
+		.map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+		.join("; ")
+
+	throw new Error(
+		`Invalid backend environment configuration: ${formattedErrors}`,
+	)
+}
+
+const env = parsedEnv.data
+
+const allowedOrigins = env.FRONTEND_ORIGIN.split(",")
+	.map((origin) => origin.trim())
+	.filter(Boolean)
+
+module.exports = {
+	env,
+	allowedOrigins,
+	isProduction: env.NODE_ENV === "production",
+	isTest: env.NODE_ENV === "test",
+	isSupabaseConfigured: Boolean(
+		env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY,
+	),
+}
