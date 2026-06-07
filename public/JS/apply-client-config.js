@@ -187,7 +187,7 @@
 
 		form.removeAttribute("action")
 		form.setAttribute("method", "POST")
-		form.dataset.emailProvider = "firebase-functions-resend"
+		form.dataset.emailProvider = "render-resend"
 
 		const subjectInput = form.querySelector('input[name="_subject"]')
 		const subject = getValue(config, "contact.formSubject")

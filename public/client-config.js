@@ -2,19 +2,20 @@
 // ------------------------------------------------------------
 // For a new client, edit this file instead of hunting through HTML/JS.
 // Safe to expose here: branding, contact details, public social links,
-// Firebase WEB config, public Cloudinary folder name.
+// Supabase public anon config, Render API URL, and public Cloudinary folder.
 // Never put private API secrets here. Resend/WhatsApp/Cloudinary secrets
-// are set with Firebase Functions secrets; see CLIENT_AUTOMATION_START.md.
+// are stored server-side in Render environment variables.
 // ------------------------------------------------------------
 ;(function () {
-	const firebaseConfig = {
-		apiKey: "AIzaSyAyVcRjG55o6nwaXpRzZyt2BtX2RamGEqg",
-		authDomain: "services-website-billydev.firebaseapp.com",
-		projectId: "services-website-billydev",
-		storageBucket: "services-website-billydev.firebasestorage.app",
-		messagingSenderId: "712913782427",
-		appId: "1:712913782427:web:e997553d71bd9a1f6a283e",
-		measurementId: "G-B6LVQBEN3G",
+	const supabaseConfig = {
+		// Public Supabase project URL and anon key. These are safe for browser use.
+		url: "",
+		anonKey: "",
+	}
+
+	const renderApiConfig = {
+		// Example: "https://salon-render-backend.onrender.com"
+		apiBaseUrl: "",
 	}
 
 	const businessName = "Royal Braids"
@@ -1803,19 +1804,11 @@
 		},
 
 		integrations: {
-			firebase: firebaseConfig,
+			supabase: supabaseConfig,
+			render: renderApiConfig,
 			cloudinaryFolder: cloudinaryGalleryFolder,
 			whatsappPublicUrl: whatsappUrl,
-			contactEmailProvider: "firebase-functions-resend",
-			firebaseSecretNames: {
-				resendApiKey: "RESEND_API_KEY",
-				resendFromEmail: "RESEND_FROM_EMAIL",
-				whatsappAccessToken: "WHATSAPP_CLOUD_ACCESS_TOKEN",
-				whatsappPhoneNumberId: "WHATSAPP_CLOUD_PHONE_NUMBER_ID",
-				cloudinaryCloudName: "CLOUDINARY_CLOUD_NAME",
-				cloudinaryApiKey: "CLOUDINARY_API_KEY",
-				cloudinaryApiSecret: "CLOUDINARY_API_SECRET",
-			},
+			contactEmailProvider: "render-resend",
 		},
 
 		features: {
@@ -1829,7 +1822,8 @@
 		},
 
 		app: {
-			firebase: firebaseConfig,
+			supabase: supabaseConfig,
+			render: renderApiConfig,
 			cloudinaryFolder: cloudinaryGalleryFolder,
 			businessName,
 			businessSlug,

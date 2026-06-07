@@ -445,6 +445,23 @@ async function installFirebaseMock(page, options = {}) {
 			}
 		}
 
+		const mockFunctionsService = functionsFactory()
+
+		window.AppServices = {
+			auth: authService,
+			db,
+			functions: mockFunctionsService,
+			functionsService: mockFunctionsService,
+			getAccessToken: () => "",
+			serverTimestamp: firestoreFactory.FieldValue.serverTimestamp,
+			timestampFromMillis: firestoreFactory.Timestamp.fromMillis,
+			increment: firestoreFactory.FieldValue.increment,
+			documentIdField: firestoreFactory.FieldPath.documentId,
+			emailCredential: authFactory.EmailAuthProvider.credential,
+			googleProvider: () => new authFactory.GoogleAuthProvider(),
+			Persistence: authFactory.Auth.Persistence,
+		}
+
 		window.firebase = {
 			apps: [],
 			initializeApp(config, name) {
@@ -454,7 +471,7 @@ async function installFirebaseMock(page, options = {}) {
 			},
 			auth: authFactory,
 			firestore: firestoreFactory,
-			functions: functionsFactory,
+			functions: () => mockFunctionsService,
 		}
 	}, options)
 }

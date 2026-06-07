@@ -5,7 +5,7 @@
 
 	// The Playwright E2E server runs on Vite's preview default port. Skipping
 	// registration there keeps tests isolated from cached third-party SDKs and
-	// lets the Firebase mock installed by the tests remain authoritative.
+	// lets the browser test mock installed by the tests remain authoritative.
 	if (["4173"].includes(window.location.port)) return
 
 	window.addEventListener("load", () => {

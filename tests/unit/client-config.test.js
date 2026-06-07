@@ -39,7 +39,13 @@ describe("client-config.js", () => {
 		expect(window.CLIENT_CONFIG).toBeTruthy()
 		expect(window.APP_CONFIG).toBe(window.CLIENT_CONFIG.app)
 		expect(window.CLIENT_CONFIG.client.name).toMatch(/\S/)
-		expect(window.APP_CONFIG.firebase.projectId).toMatch(/\S/)
+		expect(window.APP_CONFIG.firebase).toBeUndefined()
+		expect(window.APP_CONFIG.supabase).toEqual(
+			expect.objectContaining({ url: expect.any(String), anonKey: expect.any(String) }),
+		)
+		expect(window.APP_CONFIG.render).toEqual(
+			expect.objectContaining({ apiBaseUrl: expect.any(String) }),
+		)
 	})
 
 	it("keeps service catalog data available for public rendering", () => {

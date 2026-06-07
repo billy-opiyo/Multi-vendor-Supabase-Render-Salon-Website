@@ -1,14 +1,12 @@
 const appConfig = window.APP_CONFIG || {}
-const firebaseConfig = appConfig.firebase || {}
 const clientCloudinaryFolder =
 	String(appConfig.cloudinaryFolder || "royal-braids/gallery").trim() ||
 	"royal-braids/gallery"
 
-let firebaseReady = false
+let appServicesReady = false
 let db = null
 let auth = null
-let adminFunctionsService = null
-let adminFirebaseApp = null
+let adminCallableService = null
 let adminUnlocked = false
 let adminBookingsUnsubscribe = null
 let adminGalleryUnsubscribe = null
@@ -517,25 +515,20 @@ function resetAdminLoginCredentials() {
 	setAdminPasswordVisibility(false)
 }
 
-function canInitializeFirebase() {
-	return (
-		typeof firebase !== "undefined" &&
-		firebaseConfig.apiKey &&
-		firebaseConfig.authDomain &&
-		firebaseConfig.projectId &&
-		firebaseConfig.appId
-	)
+function getAdminAppServices() {
+	return window.AppServices || {}
 }
 
-function getOrCreateAdminFirebaseApp() {
-	if (!firebase?.apps?.length) {
-		return firebase.initializeApp(firebaseConfig, ADMIN_APP_NAME)
-	}
+function getServerTimestamp() {
+	const services = getAdminAppServices()
+	return typeof services.serverTimestamp === "function"
+		? services.serverTimestamp()
+		: new Date().toISOString()
+}
 
-	const existingNamed = firebase.apps.find((app) => app.name === ADMIN_APP_NAME)
-	if (existingNamed) return existingNamed
-
-	return firebase.initializeApp(firebaseConfig, ADMIN_APP_NAME)
+function canInitializeAppServices() {
+	const services = getAdminAppServices()
+	return Boolean(services.auth && services.db)
 }
 
 function normalizeAdminRoleValue(value = "") {
@@ -571,7 +564,7 @@ function isCurrentSuperAdmin() {
 }
 
 function canStartAdminRealtimeListener(permissionKey = "") {
-	if (!firebaseReady || !db || !adminUnlocked) return false
+	if (!appServicesReady || !db || !adminUnlocked) return false
 	const key = String(permissionKey || "").trim()
 	return key ? hasAdminAccessPermission(key) : true
 }
@@ -1461,7 +1454,7 @@ async function saveAdminServiceCategorySettings() {
 					categories: normalizeAdminServiceCategoriesState(
 						adminServiceCategoriesDraft,
 					),
-					updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+					updatedAt: getServerTimestamp(),
 					updatedBy: auth?.currentUser?.email || "admin",
 				},
 				{ merge: true },
@@ -1550,14 +1543,14 @@ function setAdminMessage(type, text, targetId = "adminMessage") {
 
 async function callAdminRestrictUserAction(payload = {}) {
 	if (
-		!firebaseReady ||
-		!adminFunctionsService ||
-		typeof adminFunctionsService.httpsCallable !== "function"
+		!appServicesReady ||
+		!adminCallableService ||
+		typeof adminCallableService.httpsCallable !== "function"
 	) {
-		throw new Error("Cloud Functions service is not ready yet.")
+		throw new Error("Render API action service is not ready yet.")
 	}
 
-	const callable = adminFunctionsService.httpsCallable(
+	const callable = adminCallableService.httpsCallable(
 		"adminRestrictUserAccount",
 	)
 	const response = await callable(payload)
@@ -1566,56 +1559,56 @@ async function callAdminRestrictUserAction(payload = {}) {
 
 async function callAdminCreateAdminUserAction(payload = {}) {
 	if (
-		!firebaseReady ||
-		!adminFunctionsService ||
-		typeof adminFunctionsService.httpsCallable !== "function"
+		!appServicesReady ||
+		!adminCallableService ||
+		typeof adminCallableService.httpsCallable !== "function"
 	) {
-		throw new Error("Cloud Functions service is not ready yet.")
+		throw new Error("Render API action service is not ready yet.")
 	}
 
-	const callable = adminFunctionsService.httpsCallable("adminCreateAdminUser")
+	const callable = adminCallableService.httpsCallable("adminCreateAdminUser")
 	const response = await callable(payload)
 	return response?.data || { ok: true }
 }
 
 async function callAdminUpdateAdminUserAction(payload = {}) {
 	if (
-		!firebaseReady ||
-		!adminFunctionsService ||
-		typeof adminFunctionsService.httpsCallable !== "function"
+		!appServicesReady ||
+		!adminCallableService ||
+		typeof adminCallableService.httpsCallable !== "function"
 	) {
-		throw new Error("Cloud Functions service is not ready yet.")
+		throw new Error("Render API action service is not ready yet.")
 	}
 
-	const callable = adminFunctionsService.httpsCallable("adminUpdateAdminUser")
+	const callable = adminCallableService.httpsCallable("adminUpdateAdminUser")
 	const response = await callable(payload)
 	return response?.data || { ok: true }
 }
 
 async function callAdminListAdminUsersAction() {
 	if (
-		!firebaseReady ||
-		!adminFunctionsService ||
-		typeof adminFunctionsService.httpsCallable !== "function"
+		!appServicesReady ||
+		!adminCallableService ||
+		typeof adminCallableService.httpsCallable !== "function"
 	) {
-		throw new Error("Cloud Functions service is not ready yet.")
+		throw new Error("Render API action service is not ready yet.")
 	}
 
-	const callable = adminFunctionsService.httpsCallable("adminListAdminUsers")
+	const callable = adminCallableService.httpsCallable("adminListAdminUsers")
 	const response = await callable({})
 	return response?.data || { ok: true, admins: [] }
 }
 
 async function callAdminMoveWaitlistBookingToConfirmedAction(payload = {}) {
 	if (
-		!firebaseReady ||
-		!adminFunctionsService ||
-		typeof adminFunctionsService.httpsCallable !== "function"
+		!appServicesReady ||
+		!adminCallableService ||
+		typeof adminCallableService.httpsCallable !== "function"
 	) {
-		throw new Error("Cloud Functions service is not ready yet.")
+		throw new Error("Render API action service is not ready yet.")
 	}
 
-	const callable = adminFunctionsService.httpsCallable(
+	const callable = adminCallableService.httpsCallable(
 		"adminMoveWaitlistBookingToConfirmed",
 	)
 	const response = await callable(payload)
@@ -1624,14 +1617,14 @@ async function callAdminMoveWaitlistBookingToConfirmedAction(payload = {}) {
 
 async function callAdminUpdateBookingStatusAndReleaseSlotAction(payload = {}) {
 	if (
-		!firebaseReady ||
-		!adminFunctionsService ||
-		typeof adminFunctionsService.httpsCallable !== "function"
+		!appServicesReady ||
+		!adminCallableService ||
+		typeof adminCallableService.httpsCallable !== "function"
 	) {
-		throw new Error("Cloud Functions service is not ready yet.")
+		throw new Error("Render API action service is not ready yet.")
 	}
 
-	const callable = adminFunctionsService.httpsCallable(
+	const callable = adminCallableService.httpsCallable(
 		"adminUpdateBookingStatusAndReleaseSlot",
 	)
 	const response = await callable(payload)
@@ -3899,7 +3892,7 @@ async function updateContactMessageStatus(messageId, status) {
 		.set(
 			{
 				status: normalizeContactStatus(status),
-				updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+				updatedAt: getServerTimestamp(),
 			},
 			{ merge: true },
 		)
@@ -4455,7 +4448,7 @@ async function updateLinkedWaitlistBookingStatus(
 	if (!safeBookingId) return
 
 	const normalizedStatus = normalizeWaitlistStatus(status)
-	const serverNow = firebase.firestore.FieldValue.serverTimestamp()
+	const serverNow = getServerTimestamp()
 	const payload = {
 		waitlistStatus: normalizedStatus,
 		waitlistAdminUpdatedBy: actorEmail,
@@ -4483,7 +4476,7 @@ async function updateLinkedWaitlistBookingStatus(
 async function updateWaitlistStatus(waitlistId, status, bookingId = "") {
 	const normalizedStatus = normalizeWaitlistStatus(status)
 	const actorEmail = auth?.currentUser?.email || "admin"
-	const serverNow = firebase.firestore.FieldValue.serverTimestamp()
+	const serverNow = getServerTimestamp()
 	const payload = {
 		status: normalizedStatus,
 		adminUpdatedBy: actorEmail,
@@ -4841,12 +4834,12 @@ async function updateReviewStatus(reviewId, status) {
 
 	const payload = {
 		status: normalizedStatus,
-		updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+		updatedAt: getServerTimestamp(),
 	}
 
 	if (normalizedStatus === "approved") {
 		payload.approvedBy = auth?.currentUser?.email || "admin"
-		payload.approvedAt = firebase.firestore.FieldValue.serverTimestamp()
+		payload.approvedAt = getServerTimestamp()
 	}
 
 	await db.collection("reviews").doc(reviewId).set(payload, { merge: true })
@@ -4860,7 +4853,7 @@ async function updateReviewText(reviewId, text) {
 			{
 				text: String(text || "").trim(),
 				status: "pending",
-				updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+				updatedAt: getServerTimestamp(),
 			},
 			{ merge: true },
 		)
@@ -4873,7 +4866,7 @@ async function updateReviewReply(reviewId, reply) {
 		.set(
 			{
 				adminReply: String(reply || "").trim(),
-				updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+				updatedAt: getServerTimestamp(),
 			},
 			{ merge: true },
 		)
@@ -4885,7 +4878,7 @@ async function toggleReviewFeatured(reviewId) {
 	await db.collection("reviews").doc(reviewId).set(
 		{
 			featured: nextFeatured,
-			updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+			updatedAt: getServerTimestamp(),
 		},
 		{ merge: true },
 	)
@@ -6078,14 +6071,14 @@ function renderAdminGallery(docs) {
 async function uploadImageToCloudinary(file) {
 	if (!file) return ""
 	if (
-		!firebaseReady ||
-		!adminFunctionsService ||
-		typeof adminFunctionsService.httpsCallable !== "function"
+		!appServicesReady ||
+		!adminCallableService ||
+		typeof adminCallableService.httpsCallable !== "function"
 	) {
-		throw new Error("Cloud Functions service is not ready yet.")
+		throw new Error("Render API action service is not ready yet.")
 	}
 
-	const signUploadCallable = adminFunctionsService.httpsCallable(
+	const signUploadCallable = adminCallableService.httpsCallable(
 		"createCloudinarySignedUpload",
 	)
 	const signResponse = await signUploadCallable({
@@ -6261,7 +6254,7 @@ async function saveGalleryItem(event) {
 			hasBeforeAfter: Boolean(beforeImageUrl),
 			featuredTrending,
 			featuredMostBooked,
-			updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+			updatedAt: getServerTimestamp(),
 		}
 
 		if (editId) {
@@ -6277,7 +6270,7 @@ async function saveGalleryItem(event) {
 		} else {
 			await db.collection("galleryStyles").add({
 				...payload,
-				createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+				createdAt: getServerTimestamp(),
 			})
 			setAdminMessage(
 				"success",
@@ -6381,7 +6374,7 @@ async function saveBlogItem(event) {
 			publishDate,
 			readMoreUrl,
 			imageUrl,
-			updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+			updatedAt: getServerTimestamp(),
 		}
 
 		if (editId) {
@@ -6394,7 +6387,7 @@ async function saveBlogItem(event) {
 		} else {
 			await db.collection("blogs").add({
 				...payload,
-				createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+				createdAt: getServerTimestamp(),
 			})
 			setAdminMessage(
 				"success",
@@ -6471,7 +6464,7 @@ async function updateBookingStatus(bookingId, status) {
 	await ref.set(
 		{
 			status,
-			updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+			updatedAt: getServerTimestamp(),
 		},
 		{ merge: true },
 	)
@@ -6815,7 +6808,7 @@ function startAdminSessionsListener() {
 					}
 					setAdminMessage(
 						"error",
-						"⚠️ Session tracking permission denied. Please sign out/in and refresh after Firestore rules deployment.",
+						"⚠️ Session tracking permission denied. Please sign out/in and refresh after backend policy deployment.",
 						"adminSecurityEventsMessage",
 					)
 					return
@@ -6986,10 +6979,10 @@ function initializeAdminPanel() {
 
 	loginForm.addEventListener("submit", async (event) => {
 		event.preventDefault()
-		if (!firebaseReady || !auth) {
+		if (!appServicesReady || !auth) {
 			setAdminMessage(
 				"error",
-				"❌ Firebase Auth is not ready yet.",
+				"❌ Auth service is not ready yet.",
 				"adminAuthMessage",
 			)
 			return
@@ -8035,36 +8028,33 @@ function initializeAdminPanel() {
 	setAdminUnlockedState(false)
 }
 
-async function initializeFirebaseServices() {
-	if (!canInitializeFirebase()) {
+async function initializeAppServices() {
+	const services = getAdminAppServices()
+	if (!canInitializeAppServices()) {
 		setAdminMessage(
 			"error",
-			"⚠️ Firebase is not configured. Add APP_CONFIG keys on this page.",
+			"⚠️ App services are not configured. Check Supabase/Render settings in client-config.js.",
 			"adminAuthMessage",
 		)
 		return
 	}
 
-	adminFirebaseApp = getOrCreateAdminFirebaseApp()
-
-	auth = firebase.auth(adminFirebaseApp)
-	db = firebase.firestore(adminFirebaseApp)
-	if (typeof firebase.functions === "function") {
-		adminFunctionsService = firebase.functions(adminFirebaseApp)
-	}
-
+	auth = services.auth
+	db = services.db
+	adminCallableService = services.functionsService || services.functions || null
 	try {
-		await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION)
+		if (typeof auth.setPersistence === "function") {
+			await auth.setPersistence(services.Persistence?.SESSION || "session")
+		}
 	} catch (persistenceError) {
 		console.warn("Admin auth persistence setup failed:", persistenceError)
 	}
 
+	appServicesReady = true
 	auth.onAuthStateChanged((user) => {
 		handleAuthStateChange(user)
 	})
-
-	firebaseReady = true
 }
 
 initializeAdminPanel()
-initializeFirebaseServices()
+initializeAppServices()

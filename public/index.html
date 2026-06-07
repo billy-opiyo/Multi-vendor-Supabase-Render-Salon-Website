@@ -18,7 +18,7 @@
 			})()
 		</script>
 		<script>
-			// Force localhost when opening via 127.0.0.1 to avoid Firebase Auth handler mismatches.
+			// Force localhost when opening via 127.0.0.1 to avoid auth redirect handler mismatches.
 			if (window.location.hostname === "127.0.0.1") {
 				const target = `${window.location.protocol}//localhost${window.location.port ? `:${window.location.port}` : ""}${window.location.pathname}${window.location.search}${window.location.hash}`
 				window.location.replace(target)
@@ -43,7 +43,6 @@
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 		<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
-		<link rel="preconnect" href="https://www.gstatic.com" crossorigin />
 		<link
 			rel="preload"
 			as="image"
@@ -64,22 +63,8 @@
 		<script src="client-config.js" defer></script>
 		<script src="JS/apply-client-config.js" defer></script>
 		<script src="JS/theme-preset-preview.js" defer></script>
-		<script
-			src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"
-			defer
-		></script>
-		<script
-			src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"
-			defer
-		></script>
-		<script
-			src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"
-			defer
-		></script>
-		<script
-			src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"
-			defer
-		></script>
+		<script src="JS/render-api-adapter.js" defer></script>
+		<script src="JS/supabase-browser-adapter.js" defer></script>
 		<script
 			src="JS/script.js?v=20260531-waitlist-joined-feedback-mobile-time-picker-fix"
 			defer
@@ -1514,7 +1499,7 @@
 						class="newsletter-form"
 						id="contactForm"
 						method="POST"
-						data-email-provider="firebase-functions-resend"
+						data-email-provider="render-resend"
 					>
 						<div class="contact-form-grid">
 							<div class="form-group">

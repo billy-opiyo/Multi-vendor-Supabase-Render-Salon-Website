@@ -1593,14 +1593,13 @@ const MAIN_HAIR_SERVICE_NAME_KEYWORDS = [
 	"retouch",
 ]
 
-// ============ FIREBASE + CLOUDINARY CONFIG ============
+// ============ APP SERVICES + CLOUDINARY CONFIG ============
 const appConfig = window.APP_CONFIG || {}
-const firebaseConfig = appConfig.firebase || {}
 
-let firebaseReady = false
+let appServicesReady = false
 let db = null
 let auth = null
-let functionsService = null
+let callableService = null
 let activeAvailabilityUnsubscribe = null
 let currentBookedSlotEntries = []
 let currentBookingTimeSlotOptions = []
@@ -1741,7 +1740,7 @@ function getFriendlyAuthError(error) {
 	}
 
 	if (code === "auth/unauthorized-domain") {
-		return "This website domain is not authorized in Firebase Authentication. Add it under Authentication → Settings → Authorized domains."
+		return "This website domain is not authorized for browser authentication. Check the Supabase redirect URL settings."
 	}
 
 	if (code === "auth/invalid-credential") {
@@ -1761,11 +1760,11 @@ function getFriendlyAuthError(error) {
 	}
 
 	if (error?.code === "auth/admin-restricted-operation") {
-		return "Anonymous sign-in is disabled. In Firebase Console, go to Authentication → Sign-in method and enable Anonymous provider."
+		return "Guest sign-in is unavailable. Check the browser auth configuration."
 	}
 
 	if (error?.code === "auth/operation-not-allowed") {
-		return "This sign-in method is not enabled. Enable Anonymous provider in Firebase Authentication settings."
+		return "This sign-in method is not enabled in the browser auth configuration."
 	}
 
 	if (code === "auth/requires-recent-login") {
@@ -1918,10 +1917,10 @@ function generateSessionId() {
 	return `sess_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`
 }
 
-function getSessionFirestoreRef(uid = "", sessionId = "") {
+function getSessionPresenceRef(uid = "", sessionId = "") {
 	const safeUid = String(uid || "").trim()
 	const safeSessionId = String(sessionId || "").trim()
-	if (!firebaseReady || !db || !safeUid || !safeSessionId) return null
+	if (!appServicesReady || !db || !safeUid || !safeSessionId) return null
 	return db
 		.collection("userSessions")
 		.doc(safeUid)
@@ -1934,7 +1933,7 @@ async function writeSessionPresence({
 	markSessionStart = false,
 } = {}) {
 	if (
-		!firebaseReady ||
+		!appServicesReady ||
 		!db ||
 		!auth?.currentUser ||
 		auth.currentUser.isAnonymous
@@ -1948,7 +1947,7 @@ async function writeSessionPresence({
 		currentSessionId = generateSessionId()
 	}
 
-	const ref = getSessionFirestoreRef(uid, currentSessionId)
+	const ref = getSessionPresenceRef(uid, currentSessionId)
 	if (!ref) return
 
 	const nowMs = Date.now()
@@ -1957,7 +1956,7 @@ async function writeSessionPresence({
 		uid,
 		sessionId: currentSessionId,
 		online: online === true,
-		lastActiveAt: firebase.firestore.FieldValue.serverTimestamp(),
+		lastActiveAt: getServerTimestamp(),
 		lastActiveAtMs: nowMs,
 		deviceType: client.deviceType,
 		browser: client.browser,
@@ -1967,11 +1966,11 @@ async function writeSessionPresence({
 		),
 		timezone: client.timezone,
 		locale: client.locale,
-		updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+		updatedAt: getServerTimestamp(),
 	}
 
 	if (online === true && markSessionStart === true) {
-		payload.startedAt = firebase.firestore.FieldValue.serverTimestamp()
+		payload.startedAt = getServerTimestamp()
 		payload.startedAtMs = nowMs
 	}
 
@@ -1992,7 +1991,7 @@ function stopSessionHeartbeat() {
 function startSessionHeartbeat() {
 	stopSessionHeartbeat()
 	if (
-		!firebaseReady ||
+		!appServicesReady ||
 		!db ||
 		!auth?.currentUser ||
 		auth.currentUser.isAnonymous
@@ -2006,20 +2005,20 @@ function startSessionHeartbeat() {
 }
 
 async function markCurrentSessionOffline() {
-	if (!firebaseReady || !db || !auth?.currentUser || !currentSessionId) return
+	if (!appServicesReady || !db || !auth?.currentUser || !currentSessionId) return
 	const uid = String(auth.currentUser.uid || "").trim()
 	if (!uid) return
 
-	const ref = getSessionFirestoreRef(uid, currentSessionId)
+	const ref = getSessionPresenceRef(uid, currentSessionId)
 	if (!ref) return
 
 	try {
 		await ref.set(
 			{
 				online: false,
-				lastActiveAt: firebase.firestore.FieldValue.serverTimestamp(),
+				lastActiveAt: getServerTimestamp(),
 				lastActiveAtMs: Date.now(),
-				updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+				updatedAt: getServerTimestamp(),
 			},
 			{ merge: true },
 		)
@@ -2057,7 +2056,7 @@ function normalizeSecurityRestrictionState(raw = {}) {
 
 async function getUserSecurityRestrictionStateByUid(uid = "") {
 	const safeUid = String(uid || "").trim()
-	if (!firebaseReady || !db || !safeUid) {
+	if (!appServicesReady || !db || !safeUid) {
 		return normalizeSecurityRestrictionState({})
 	}
 
@@ -2076,7 +2075,7 @@ async function getUserSecurityRestrictionStateByEmail(email = "") {
 	const safeEmail = String(email || "")
 		.trim()
 		.toLowerCase()
-	if (!firebaseReady || !db || !safeEmail) {
+	if (!appServicesReady || !db || !safeEmail) {
 		return normalizeSecurityRestrictionState({})
 	}
 
@@ -2205,14 +2204,14 @@ async function trackLoginActivity({
 	context = {},
 } = {}) {
 	if (
-		!firebaseReady ||
-		!functionsService ||
-		typeof functionsService.httpsCallable !== "function"
+		!appServicesReady ||
+		!callableService ||
+		typeof callableService.httpsCallable !== "function"
 	) {
 		return
 	}
 
-	const logLoginActivity = functionsService.httpsCallable("logLoginActivity")
+	const logLoginActivity = callableService.httpsCallable("logLoginActivity")
 	const client = buildLoginClientContext()
 	const attemptedEmail = String(context?.attemptedEmail || "")
 		.trim()
@@ -2241,16 +2240,16 @@ async function trackAccountSecurityChange({
 	context = {},
 } = {}) {
 	if (
-		!firebaseReady ||
+		!appServicesReady ||
 		!auth?.currentUser ||
 		auth.currentUser.isAnonymous ||
-		!functionsService ||
-		typeof functionsService.httpsCallable !== "function"
+		!callableService ||
+		typeof callableService.httpsCallable !== "function"
 	) {
 		return
 	}
 
-	const logAccountSecurityChange = functionsService.httpsCallable(
+	const logAccountSecurityChange = callableService.httpsCallable(
 		"logAccountSecurityChange",
 	)
 	const client = buildLoginClientContext()
@@ -2276,9 +2275,9 @@ async function trackAccountSecurityChange({
 
 function getHttpsCallableFunction(functionName = "") {
 	if (
-		!firebaseReady ||
-		!functionsService ||
-		typeof functionsService.httpsCallable !== "function"
+		!appServicesReady ||
+		!callableService ||
+		typeof callableService.httpsCallable !== "function"
 	) {
 		throw new Error(
 			"Booking actions are not ready yet. Please refresh and try again.",
@@ -2290,7 +2289,7 @@ function getHttpsCallableFunction(functionName = "") {
 		throw new Error("Booking action is not configured.")
 	}
 
-	return functionsService.httpsCallable(safeFunctionName)
+	return callableService.httpsCallable(safeFunctionName)
 }
 
 async function callClientCancelBookingAction(bookingId = "") {
@@ -2367,7 +2366,7 @@ async function finalizeGoogleSignInResult(user, context = {}) {
 }
 
 async function handleGoogleRedirectResultOnLoad(showNoResult = false) {
-	if (!firebaseReady || !auth) return false
+	if (!appServicesReady || !auth) return false
 
 	try {
 		const redirectResult = await auth.getRedirectResult()
@@ -2393,14 +2392,61 @@ async function handleGoogleRedirectResultOnLoad(showNoResult = false) {
 	}
 }
 
-function canInitializeFirebase() {
-	return (
-		typeof firebase !== "undefined" &&
-		firebaseConfig.apiKey &&
-		firebaseConfig.authDomain &&
-		firebaseConfig.projectId &&
-		firebaseConfig.appId
-	)
+function getAppServices() {
+	return window.AppServices || {}
+}
+
+function getServerTimestamp() {
+	const services = getAppServices()
+	return typeof services.serverTimestamp === "function"
+		? services.serverTimestamp()
+		: new Date().toISOString()
+}
+
+function getTimestampFromMillis(millis = Date.now()) {
+	const safeMillis = Number(millis || Date.now())
+	const services = getAppServices()
+	return typeof services.timestampFromMillis === "function"
+		? services.timestampFromMillis(safeMillis)
+		: new Date(safeMillis).toISOString()
+}
+
+function getIncrementValue(amount = 1) {
+	const services = getAppServices()
+	return typeof services.increment === "function"
+		? services.increment(amount)
+		: { __type: "increment", amount }
+}
+
+function getDocumentIdField() {
+	const services = getAppServices()
+	return typeof services.documentIdField === "function"
+		? services.documentIdField()
+		: "__name__"
+}
+
+function createEmailCredential(email, password) {
+	const services = getAppServices()
+	return typeof services.emailCredential === "function"
+		? services.emailCredential(email, password)
+		: { email, password }
+}
+
+function createGoogleProvider() {
+	const services = getAppServices()
+	const provider =
+		typeof services.googleProvider === "function"
+			? services.googleProvider()
+			: { providerId: "google" }
+	if (provider && typeof provider.setCustomParameters !== "function") {
+		provider.setCustomParameters = function () {}
+	}
+	return provider
+}
+
+function canInitializeAppServices() {
+	const services = getAppServices()
+	return Boolean(services.auth && services.db)
 }
 
 function getDefaultEnabledServiceCategoriesState() {
@@ -2544,7 +2590,7 @@ function applyServiceCategorySettings(rawCategories = {}) {
 }
 
 function startServiceCategorySettingsListener() {
-	if (!firebaseReady || !db) return
+	if (!appServicesReady || !db) return
 
 	stopServiceCategorySettingsListener()
 
@@ -2563,26 +2609,28 @@ function startServiceCategorySettingsListener() {
 		)
 }
 
-async function initializeFirebaseServices() {
-	if (!canInitializeFirebase()) return
-
-	if (!firebase.apps.length) {
-		firebase.initializeApp(firebaseConfig)
+async function initializeAppServices() {
+	const services = getAppServices()
+	if (!canInitializeAppServices()) {
+		console.warn(
+			"App services are not configured. Load JS/supabase-browser-adapter.js before JS/script.js.",
+		)
+		return
 	}
 
-	auth = firebase.auth()
+	auth = services.auth
+	db = services.db
+	callableService = services.functionsService || services.functions || null
 	attachAuthStateObserver()
 	try {
-		await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+		if (typeof auth.setPersistence === "function") {
+			await auth.setPersistence(services.Persistence?.LOCAL || "local")
+		}
 	} catch (persistenceError) {
 		console.warn("Auth persistence setup failed:", persistenceError)
 	}
-	db = firebase.firestore()
-	if (typeof firebase.functions === "function") {
-		functionsService = firebase.functions()
-	}
 
-	firebaseReady = true
+	appServicesReady = true
 	startServiceCategorySettingsListener()
 
 	const persistedUser = auth.currentUser
@@ -3026,7 +3074,7 @@ function closeManageAccountModal() {
 }
 
 async function handleManageAccountSaveProfile() {
-	if (!firebaseReady || !auth?.currentUser) return
+	if (!appServicesReady || !auth?.currentUser) return
 	const user = auth.currentUser
 	const name = authUi.manageAccountName?.value?.trim() || ""
 	const email = authUi.manageAccountEmail?.value?.trim() || ""
@@ -3162,7 +3210,7 @@ async function handleManageAccountSaveProfile() {
 }
 
 async function handleManageAccountChangePassword() {
-	if (!firebaseReady || !auth?.currentUser) return
+	if (!appServicesReady || !auth?.currentUser) return
 	const user = auth.currentUser
 	const currentPassword = authUi.manageAccountCurrentPassword?.value || ""
 	const newPassword = authUi.manageAccountNewPassword?.value || ""
@@ -3188,7 +3236,7 @@ async function handleManageAccountChangePassword() {
 		if (!user.email) {
 			throw new Error("Email account required for password change.")
 		}
-		const credential = firebase.auth.EmailAuthProvider.credential(
+		const credential = createEmailCredential(
 			user.email,
 			currentPassword,
 		)
@@ -3224,7 +3272,7 @@ async function handleManageAccountChangePassword() {
 }
 
 async function handleManageAccountResetPassword() {
-	if (!firebaseReady || !auth) return
+	if (!appServicesReady || !auth) return
 	const email =
 		authUi.manageAccountEmail?.value?.trim() || auth.currentUser?.email || ""
 	if (!email) {
@@ -3659,7 +3707,7 @@ function focusDashboardAfterAuthIfRequested() {
 }
 
 async function upsertUserProfile(user, extras = {}) {
-	if (!firebaseReady || !db || !user?.uid) return
+	if (!appServicesReady || !db || !user?.uid) return
 	const safeDisplayName =
 		(user.displayName || extras.displayName || "").trim() ||
 		getUserDisplayName(user)
@@ -3676,8 +3724,8 @@ async function upsertUserProfile(user, extras = {}) {
 			email: emailValue,
 			provider: providerId,
 			phone: phoneValue,
-			updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-			createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+			updatedAt: getServerTimestamp(),
+			createdAt: getServerTimestamp(),
 		},
 		{ merge: true },
 	)
@@ -3842,7 +3890,7 @@ function applyDashboardWaitlistQueueInfo(booking = {}, queueInfo = {}) {
 
 async function getDashboardWaitlistDocQueueInfo(waitlistId = "") {
 	const safeWaitlistId = String(waitlistId || "").trim()
-	if (!firebaseReady || !db || !safeWaitlistId) return null
+	if (!appServicesReady || !db || !safeWaitlistId) return null
 
 	const snapshot = await db.collection("waitlist").doc(safeWaitlistId).get()
 	if (!snapshot.exists) return null
@@ -4201,7 +4249,7 @@ function subscribeToDashboardRescheduleAvailability(
 	stylistKey,
 	currentSlotId,
 ) {
-	if (!firebaseReady || !db || !dateValue || !authUi.dashboardRescheduleTime)
+	if (!appServicesReady || !db || !dateValue || !authUi.dashboardRescheduleTime)
 		return
 
 	stopDashboardRescheduleAvailabilityListener()
@@ -4215,8 +4263,8 @@ function subscribeToDashboardRescheduleAvailability(
 
 	dashboardRescheduleAvailabilityUnsubscribe = db
 		.collection("bookingSlots")
-		.where(firebase.firestore.FieldPath.documentId(), ">=", datePrefix)
-		.where(firebase.firestore.FieldPath.documentId(), "<=", datePrefixEnd)
+		.where(getDocumentIdField(), ">=", datePrefix)
+		.where(getDocumentIdField(), "<=", datePrefixEnd)
 		.onSnapshot(
 			(snapshot) => {
 				const taken = new Set()
@@ -4334,12 +4382,12 @@ function openDashboardRescheduleModal(booking) {
 }
 
 async function cancelDashboardBooking(bookingId) {
-	if (!firebaseReady || !auth?.currentUser || !bookingId) return
+	if (!appServicesReady || !auth?.currentUser || !bookingId) return
 	await callClientCancelBookingAction(bookingId)
 }
 
 async function saveDashboardRescheduleChanges() {
-	if (!firebaseReady || !db || !auth?.currentUser || !dashboardRescheduleTarget)
+	if (!appServicesReady || !db || !auth?.currentUser || !dashboardRescheduleTarget)
 		return
 
 	const bookingId = String(dashboardRescheduleTarget.id || "")
@@ -4512,7 +4560,7 @@ function startDashboardBookingsListener(uid, email = "") {
 	const safeEmail = String(email || "")
 		.trim()
 		.toLowerCase()
-	if (!firebaseReady || !db || !safeUid) return
+	if (!appServicesReady || !db || !safeUid) return
 
 	const listenerKey = `${safeUid}|${safeEmail}`
 	if (
@@ -4622,7 +4670,7 @@ function getFavoritePayload(style = {}) {
 		styleType: String(style.styleType || "").trim(),
 		stylistName: String(style.stylistName || "").trim(),
 		imageUrl: String(style.imageUrl || "").trim(),
-		savedAt: firebase.firestore.FieldValue.serverTimestamp(),
+		savedAt: getServerTimestamp(),
 	}
 }
 
@@ -4642,7 +4690,7 @@ function getFavoriteLoginPrompt(style = {}) {
 }
 
 async function toggleFavoriteStyle(style = {}, sourceButton = null) {
-	if (!firebaseReady || !db || !auth) return
+	if (!appServicesReady || !db || !auth) return
 
 	const user = auth.currentUser
 	if (!user || user.isAnonymous) {
@@ -4698,7 +4746,7 @@ async function toggleFavoriteStyle(style = {}, sourceButton = null) {
 }
 
 function startDashboardFavoritesListener(uid) {
-	if (!firebaseReady || !db || !uid) return
+	if (!appServicesReady || !db || !uid) return
 
 	if (
 		activeDashboardUid === uid &&
@@ -4755,7 +4803,7 @@ async function loadUserDashboardData(userOrUid) {
 					.trim()
 					.toLowerCase()
 
-	if (!firebaseReady || !db || !uid) return
+	if (!appServicesReady || !db || !uid) return
 	startDashboardFavoritesListener(uid)
 	startDashboardBookingsListener(uid, email)
 
@@ -4953,7 +5001,7 @@ async function loadUserDashboardData(userOrUid) {
 }
 
 async function handleGoogleAuth() {
-	if (!firebaseReady || !auth) return
+	if (!appServicesReady || !auth) return
 	if (authUi.message) clearFormMessage(authUi.message)
 	if (googleAuthInProgress) {
 		if (authUi.message) {
@@ -4970,7 +5018,7 @@ async function handleGoogleAuth() {
 	setAuthSwitchingState(true)
 
 	try {
-		const provider = new firebase.auth.GoogleAuthProvider()
+		const provider = createGoogleProvider()
 		provider.setCustomParameters({
 			prompt: "select_account",
 		})
@@ -5034,7 +5082,7 @@ async function handleGoogleAuth() {
 						"🔄 Popup failed, redirecting to Google sign-in...",
 					)
 				}
-				const provider = new firebase.auth.GoogleAuthProvider()
+				const provider = createGoogleProvider()
 				provider.setCustomParameters({ prompt: "select_account" })
 				if (auth.currentUser?.isAnonymous) {
 					await auth.currentUser.linkWithRedirect(provider)
@@ -5065,7 +5113,7 @@ async function handleGoogleAuth() {
 
 async function handleEmailAuthSubmit(event) {
 	event.preventDefault()
-	if (!firebaseReady || !auth) return
+	if (!appServicesReady || !auth) return
 	if (authUi.message) clearFormMessage(authUi.message)
 
 	const email = authUi.emailInput?.value?.trim() || ""
@@ -5096,7 +5144,7 @@ async function handleEmailAuthSubmit(event) {
 
 	try {
 		const currentUser = auth.currentUser
-		const credential = firebase.auth.EmailAuthProvider.credential(
+		const credential = createEmailCredential(
 			email,
 			password,
 		)
@@ -5258,7 +5306,7 @@ async function handleEmailAuthSubmit(event) {
 }
 
 async function handleForgotPassword() {
-	if (!firebaseReady || !auth) return
+	if (!appServicesReady || !auth) return
 	const forgotBtn = authUi.forgotPasswordBtn
 	const email = authUi.emailInput?.value?.trim() || ""
 	if (!email) {
@@ -5299,7 +5347,7 @@ async function handleForgotPassword() {
 }
 
 async function handleLogout() {
-	if (!firebaseReady || !auth) return
+	if (!appServicesReady || !auth) return
 	const logoutBtn = authUi.logoutBtn
 	if (logoutBtn) {
 		setButtonLoadingState(logoutBtn, true, {
@@ -5334,7 +5382,7 @@ async function handleContinueAsGuest() {
 	}
 
 	try {
-		if (firebaseReady && auth) {
+		if (appServicesReady && auth) {
 			const currentUser = auth.currentUser
 			if (currentUser && !currentUser.isAnonymous) {
 				await auth.signOut()
@@ -5378,7 +5426,7 @@ async function handleContinueAsGuest() {
 }
 
 async function handleDeleteAccount() {
-	if (!firebaseReady || !auth) return
+	if (!appServicesReady || !auth) return
 
 	const user = auth.currentUser
 	if (!user || user.isAnonymous) {
@@ -6126,7 +6174,7 @@ async function requestExpiredSlotCleanup(
 ) {
 	const safeSlotId = String(slotId || "").trim()
 	if (!safeSlotId || !isBookingSlotExpired(slotData)) return false
-	if (!firebaseReady || !functionsService || !auth?.currentUser) return false
+	if (!appServicesReady || !callableService || !auth?.currentUser) return false
 
 	const nowMs = Date.now()
 	const lastRequestedAt = expiredSlotCleanupRequestTimes.get(safeSlotId) || 0
@@ -6400,11 +6448,11 @@ async function handleJoinWaitlistButtonClick() {
 		return
 	}
 
-	if (!firebaseReady || !db || !auth) {
+	if (!appServicesReady || !db || !auth) {
 		showTimedFormMessage(
 			msg,
 			"error",
-			"⚠️ Waitlist service is not configured yet. Add Firebase keys in APP_CONFIG.",
+			"⚠️ Waitlist service is not configured yet. Check Supabase/Render settings in client-config.js.",
 		)
 		return
 	}
@@ -6525,13 +6573,11 @@ function buildRateLimitPayload(kind = "", uid = "", cooldownMs = 0) {
 			.trim()
 			.toLowerCase(),
 		uid: String(uid || "").trim(),
-		lastSubmittedAt: firebase.firestore.FieldValue.serverTimestamp(),
-		updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+		lastSubmittedAt: getServerTimestamp(),
+		updatedAt: getServerTimestamp(),
 	}
 
-	const cooldownUntil = firebase.firestore.Timestamp.fromMillis(
-		nowMs + safeCooldown,
-	)
+	const cooldownUntil = getTimestampFromMillis(nowMs + safeCooldown)
 	if (safeKind === "review") {
 		payload.reviewCooldownUntil = cooldownUntil
 	} else if (safeKind === "contact") {
@@ -6548,7 +6594,7 @@ async function joinWaitlistForUnavailableSlot({
 	slotId = "",
 	inspirationImageUrl = "",
 } = {}) {
-	if (!firebaseReady || !db || !activeUid || !slotId) return false
+	if (!appServicesReady || !db || !activeUid || !slotId) return false
 
 	const waitlistPayload = {
 		firstName: String(bookingData.firstName || "").trim(),
@@ -6568,8 +6614,8 @@ async function joinWaitlistForUnavailableSlot({
 		status: "waiting",
 		notifiedAt: null,
 		uid: String(activeUid || "").trim(),
-		createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-		updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+		createdAt: getServerTimestamp(),
+		updatedAt: getServerTimestamp(),
 	}
 
 	const waitlistDocRef = await db.collection("waitlist").add(waitlistPayload)
@@ -6579,14 +6625,14 @@ async function joinWaitlistForUnavailableSlot({
 async function uploadImageToCloudinary(file) {
 	if (!file) return ""
 	if (
-		!firebaseReady ||
-		!functionsService ||
-		typeof functionsService.httpsCallable !== "function"
+		!appServicesReady ||
+		!callableService ||
+		typeof callableService.httpsCallable !== "function"
 	) {
-		throw new Error("Cloud Functions service is not ready yet.")
+		throw new Error("Render API action service is not ready yet.")
 	}
 
-	const signUploadCallable = functionsService.httpsCallable(
+	const signUploadCallable = callableService.httpsCallable(
 		"createCloudinarySignedUpload",
 	)
 	const signResponse = await signUploadCallable({
@@ -6625,7 +6671,7 @@ async function uploadImageToCloudinary(file) {
 }
 
 function subscribeToAvailability(date, stylist) {
-	if (!firebaseReady || !db || !date) return
+	if (!appServicesReady || !db || !date) return
 
 	if (typeof activeAvailabilityUnsubscribe === "function") {
 		activeAvailabilityUnsubscribe()
@@ -6639,8 +6685,8 @@ function subscribeToAvailability(date, stylist) {
 
 	const query = db
 		.collection("bookingSlots")
-		.where(firebase.firestore.FieldPath.documentId(), ">=", startId)
-		.where(firebase.firestore.FieldPath.documentId(), "<=", endId)
+		.where(getDocumentIdField(), ">=", startId)
+		.where(getDocumentIdField(), "<=", endId)
 
 	activeAvailabilityUnsubscribe = query.onSnapshot(
 		(snapshot) => {
@@ -6691,7 +6737,7 @@ function handleAvailabilityWatch() {
 		return
 	}
 
-	if (firebaseReady) {
+	if (appServicesReady) {
 		subscribeToAvailability(dateValue, stylistValue)
 	} else {
 		populateTimeSlots()
@@ -7425,7 +7471,7 @@ function wireGalleryInteractions() {
 }
 
 function startGalleryRealtimeListener() {
-	if (!firebaseReady || !db) return
+	if (!appServicesReady || !db) return
 
 	if (typeof galleryRealtimeUnsubscribe === "function") {
 		galleryRealtimeUnsubscribe()
@@ -7745,7 +7791,7 @@ function bindBlogToggleControls() {
 }
 
 function startBlogsRealtimeListener() {
-	if (!firebaseReady || !db) return
+	if (!appServicesReady || !db) return
 
 	if (typeof blogsRealtimeUnsubscribe === "function") {
 		blogsRealtimeUnsubscribe()
@@ -8154,11 +8200,11 @@ async function submitReview(event) {
 		return
 	}
 
-	if (!firebaseReady || !db || !auth) {
+	if (!appServicesReady || !db || !auth) {
 		showTimedFormMessage(
 			msg,
 			"error",
-			"⚠️ Reviews service is not configured yet. Add Firebase keys in APP_CONFIG.",
+			"⚠️ Reviews service is not configured yet. Check Supabase/Render settings in client-config.js.",
 		)
 		return
 	}
@@ -8218,8 +8264,8 @@ async function submitReview(event) {
 			status: "pending",
 			featured: false,
 			uid: activeUid,
-			createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-			updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+			createdAt: getServerTimestamp(),
+			updatedAt: getServerTimestamp(),
 		}
 
 		if (editId) {
@@ -8273,7 +8319,7 @@ async function submitReview(event) {
 		console.error("Review submit failed:", error)
 		const friendlyError =
 			error?.code === "permission-denied"
-				? "Permission issue while saving review. Please log in again and retry. If it persists, ask admin to deploy latest Firestore rules."
+				? "Permission issue while saving review. Please log in again and retry. If it persists, ask admin to deploy the latest backend policies."
 				: error.message || "Failed to submit review. Please try again."
 		showTimedFormMessage(msg, "error", `❌ ${friendlyError}`)
 	} finally {
@@ -8340,8 +8386,8 @@ function bindReviewForm() {
 						.doc(reviewId)
 						.set(
 							{
-								reportsCount: firebase.firestore.FieldValue.increment(1),
-								updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+								reportsCount: getIncrementValue(1),
+								updatedAt: getServerTimestamp(),
 							},
 							{ merge: true },
 						)
@@ -8395,7 +8441,7 @@ function populateReviewServiceSelect() {
 }
 
 function startTestimonialsRealtimeListener() {
-	if (!firebaseReady || !db) return
+	if (!appServicesReady || !db) return
 
 	if (typeof testimonialsRealtimeUnsubscribe === "function") {
 		testimonialsRealtimeUnsubscribe()
@@ -8883,11 +8929,11 @@ document.getElementById("bookingForm").addEventListener("submit", function (e) {
 
 	clearFormMessage(msg)
 
-	if (!firebaseReady || !db || !auth) {
+	if (!appServicesReady || !db || !auth) {
 		showTimedFormMessage(
 			msg,
 			"error",
-			"⚠️ Booking service is not configured yet. Add Firebase keys in APP_CONFIG.",
+			"⚠️ Booking service is not configured yet. Check Supabase/Render settings in client-config.js.",
 		)
 		return
 	}
@@ -8949,8 +8995,8 @@ document.getElementById("bookingForm").addEventListener("submit", function (e) {
 					inspirationImageUrl,
 					status: "waitlisted",
 					uid: activeUid,
-					createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-					updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+					createdAt: getServerTimestamp(),
+					updatedAt: getServerTimestamp(),
 				})
 
 				form.style.display = "none"
@@ -9015,8 +9061,8 @@ document.getElementById("bookingForm").addEventListener("submit", function (e) {
 					stylistKey,
 					bookingId: bookingRef.id,
 					uid: activeUid,
-					createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-					updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+					createdAt: getServerTimestamp(),
+					updatedAt: getServerTimestamp(),
 				})
 
 				transaction.set(bookingRef, {
@@ -9036,8 +9082,8 @@ document.getElementById("bookingForm").addEventListener("submit", function (e) {
 					inspirationImageUrl,
 					status: "confirmed",
 					uid: activeUid,
-					createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-					updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+					createdAt: getServerTimestamp(),
+					updatedAt: getServerTimestamp(),
 				})
 			})
 
@@ -9308,7 +9354,7 @@ document
 		if (msg) clearFormMessage(msg)
 
 		try {
-			if (!firebaseReady || !db || !auth) {
+			if (!appServicesReady || !db || !auth) {
 				throw new Error(
 					"Contact service is not ready yet. Please wait a moment and try again.",
 				)
@@ -9345,8 +9391,8 @@ document
 				).trim(),
 				status: "new",
 				uid: activeUid,
-				createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-				updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+				createdAt: getServerTimestamp(),
+				updatedAt: getServerTimestamp(),
 			}
 
 			if (
@@ -9582,7 +9628,7 @@ bindWaitlistControls()
 initAnimatedHeaderLogo()
 
 // Initialize booking integrations
-initializeFirebaseServices().then(async () => {
+initializeAppServices().then(async () => {
 	await handleGoogleRedirectResultOnLoad()
 
 	const stylistSelect = document.getElementById("stylistSelect")
