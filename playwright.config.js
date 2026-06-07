@@ -21,7 +21,7 @@ module.exports = defineConfig({
 		},
 		trace: "retain-on-failure",
 		screenshot: "only-on-failure",
-		video: "retain-on-failure",
+		video: "off",
 	},
 	webServer: {
 		command: "node scripts/test-static-server.js",

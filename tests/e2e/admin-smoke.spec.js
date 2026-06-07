@@ -1,5 +1,5 @@
-const { expect, test } = require("@playwright/test")
-const { installFirebaseMock } = require("./helpers/firebase-mock")
+﻿const { expect, test } = require("@playwright/test")
+const { installAppServicesMock } = require("./helpers/app-services-mock")
 const { blockExternalNetwork } = require("./helpers/network")
 const { watchForUnexpectedPageErrors } = require("./helpers/page-errors")
 
@@ -25,7 +25,7 @@ test.describe("admin page smoke tests", () => {
 	test("admin login unlocks dashboard and renders booking stats", async ({
 		page,
 	}) => {
-		await installFirebaseMock(page, {
+		await installAppServicesMock(page, {
 			adminUid: "admin-uid",
 			initialCollections: {
 				adminUsers: {
@@ -88,7 +88,7 @@ test.describe("admin page smoke tests", () => {
 	test("admin booking status filters show matching bookings", async ({
 		page,
 	}) => {
-		await installFirebaseMock(page, {
+		await installAppServicesMock(page, {
 			adminUid: "admin-uid",
 			initialCollections: {
 				adminUsers: {
@@ -202,7 +202,7 @@ test.describe("admin page smoke tests", () => {
 	})
 
 	test("admin page stays responsive on mobile", async ({ page }) => {
-		await installFirebaseMock(page)
+		await installAppServicesMock(page)
 		await blockExternalNetwork(page)
 		const pageErrors = watchForUnexpectedPageErrors(page)
 

@@ -1,4 +1,4 @@
-async function installFirebaseMock(page, options = {}) {
+async function installAppServicesMock(page, options = {}) {
 	await page.addInitScript((mockOptions) => {
 		const clone = (value) => JSON.parse(JSON.stringify(value ?? null))
 		const state = {
@@ -13,7 +13,7 @@ async function installFirebaseMock(page, options = {}) {
 			generatedIdCounter: 0,
 		}
 
-		window.__firebaseMockState = state
+		window.__appServicesMockState = state
 
 		function ensureCollection(collectionName) {
 			if (!state.collections[collectionName]) {
@@ -411,17 +411,17 @@ async function installFirebaseMock(page, options = {}) {
 		authFactory.GoogleAuthProvider.prototype.setCustomParameters =
 			function () {}
 
-		function firestoreFactory() {
+		function documentStoreFactory() {
 			return db
 		}
-		firestoreFactory.FieldValue = {
+		documentStoreFactory.FieldValue = {
 			serverTimestamp: () => ({ __type: "serverTimestamp" }),
 			increment: (amount) => ({ __type: "increment", amount }),
 		}
-		firestoreFactory.Timestamp = {
+		documentStoreFactory.Timestamp = {
 			fromMillis: (millis) => ({ __type: "timestamp", millis }),
 		}
-		firestoreFactory.FieldPath = {
+		documentStoreFactory.FieldPath = {
 			documentId: () => "__name__",
 		}
 
@@ -448,32 +448,22 @@ async function installFirebaseMock(page, options = {}) {
 		const mockFunctionsService = functionsFactory()
 
 		window.AppServices = {
+			__appServicesMock: true,
 			auth: authService,
 			db,
 			functions: mockFunctionsService,
 			functionsService: mockFunctionsService,
 			getAccessToken: () => "",
-			serverTimestamp: firestoreFactory.FieldValue.serverTimestamp,
-			timestampFromMillis: firestoreFactory.Timestamp.fromMillis,
-			increment: firestoreFactory.FieldValue.increment,
-			documentIdField: firestoreFactory.FieldPath.documentId,
+			serverTimestamp: documentStoreFactory.FieldValue.serverTimestamp,
+			timestampFromMillis: documentStoreFactory.Timestamp.fromMillis,
+			increment: documentStoreFactory.FieldValue.increment,
+			documentIdField: documentStoreFactory.FieldPath.documentId,
 			emailCredential: authFactory.EmailAuthProvider.credential,
 			googleProvider: () => new authFactory.GoogleAuthProvider(),
 			Persistence: authFactory.Auth.Persistence,
 		}
 
-		window.firebase = {
-			apps: [],
-			initializeApp(config, name) {
-				const app = { config, name: name || "[DEFAULT]" }
-				this.apps.push(app)
-				return app
-			},
-			auth: authFactory,
-			firestore: firestoreFactory,
-			functions: () => mockFunctionsService,
-		}
 	}, options)
 }
 
-module.exports = { installFirebaseMock }
+module.exports = { installAppServicesMock }

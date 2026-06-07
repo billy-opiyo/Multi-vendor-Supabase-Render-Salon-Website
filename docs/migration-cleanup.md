@@ -1,0 +1,83 @@
+# Migration and Cleanup Notes
+
+This document tracks Phase 9 migration and cleanup expectations for the active **Supabase + Render + Vercel** rebuild.
+
+## Migration sources and targets
+
+| Legacy source                                   | New target                                                           | Status                                                                     |
+| ----------------------------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Firebase Auth users                             | Supabase Auth users + `public.profiles`                              | Manual/export-dependent                                                    |
+| Firestore `adminUsers`                          | `public.admin_users`                                                 | Schema and Render endpoints exist; bootstrap required                      |
+| Firestore bookings/slots/waitlist               | `public.bookings`, `public.booking_slots`, `public.waitlist_entries` | Schema and backend workflows exist; production data migration still manual |
+| Firestore reviews/contact/content/gallery/blogs | Supabase public content tables + Render content endpoints            | Schema/backend coverage exists; production data migration still manual     |
+| Firestore security/audit/timeline data          | Supabase security/activity/audit tables                              | Schema/backend coverage exists; production data migration still manual     |
+| Firebase Functions scheduled/callable workflows | Render web service + Render cron jobs                                | Active architecture                                                        |
+| Firebase Hosting                                | Vercel static frontend hosting                                       | Active architecture target                                                 |
+
+## Supabase migration process
+
+1. Create or select the target Supabase project.
+2. Apply SQL migrations in timestamp order:
+
+   ```bash
+   supabase db push
+   ```
+
+3. If the CLI is unavailable, paste SQL files into the Supabase Dashboard SQL editor in timestamp order.
+4. Apply `supabase/seed/phase_1_development_seed.sql` only to development/staging unless reviewed for production.
+5. Verify RLS is enabled for every application table. The root Phase 9 unit tests include a static RLS coverage check.
+
+## Production data migration guidance
+
+No automated production Firebase-to-Supabase data migration is wired into the active validation workflow yet. Before migrating real customer data:
+
+1. Export Firebase Auth users and Firestore collections from the production Firebase project.
+2. Normalize IDs and status values using `docs/firebase-to-supabase-mapping.md`.
+3. Import Supabase Auth users first, then profile/admin rows.
+4. Import tenant/site/content records before bookings where foreign keys depend on them.
+5. Import booking slots before bookings, then waitlist entries and notification history.
+6. Recalculate waitlist queue positions after import.
+7. Validate counts and spot-check records against the Firebase export.
+8. Keep notification sending disabled or dry-run during import to avoid duplicate customer messages.
+
+## Firebase cleanup policy
+
+Firebase files can remain temporarily as reference material, but they must not be active runtime, test, or deployment dependencies.
+
+Already removed from the active root workflow:
+
+- Root Firebase SDK / Firebase CLI / Firebase rules-unit-testing dependencies.
+- Root `firebase emulators` scripts.
+- Root Firestore rules test script.
+- Root Functions Jest test invocation.
+- Active browser Firebase SDK script loading from public/admin HTML.
+
+Reference-only files still present and candidates for archive/removal after manual parity sign-off:
+
+- `.firebaserc`
+- `firebase.json`
+- `firestore.rules`
+- `functions/`
+- `tests/rules/`
+- `vitest.rules.config.js`
+- Legacy Firebase-focused sections in `public/README.md`, `public/ADMIN_CONSOLE_USER_MANUAL.md`, and other public docs.
+
+Suggested final cleanup sequence:
+
+1. Confirm Supabase migrations, Render backend, Render cron jobs, and Vercel frontend are live.
+2. Confirm booking, waitlist, admin, content, notification, and security smoke checks pass in staging.
+3. Archive Firebase reference files in a separate branch/tag if historical behavior needs preservation.
+4. Remove Firebase config/rules/functions/runtime test files from the active branch.
+5. Re-run `npm test` and deployment smoke checks.
+
+## Manual Phase 9 sign-off checklist
+
+- [ ] Supabase migrations applied to production.
+- [ ] Initial production super admin created in `public.admin_users`.
+- [ ] Render Blueprint applied and web service healthy.
+- [ ] Render cron jobs enabled and logging successful dry-run or real runs.
+- [ ] Vercel frontend configured with public Supabase/Render values.
+- [ ] CORS allows only approved Vercel/custom domains.
+- [ ] Notification providers verified in dry-run, then enabled intentionally.
+- [ ] Production Firebase data migration completed or explicitly deferred.
+- [ ] Firebase reference files archived/removed after parity sign-off.

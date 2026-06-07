@@ -3,36 +3,10 @@
 // The static frontend uses the AppServices surface for auth, data, callable
 // actions, and realtime-style listeners. During migration this adapter backs
 // those calls with Supabase Auth and Render REST endpoints where available.
-// If tests install their own legacy mock before this file runs, the mock remains
-// authoritative while still being exposed through AppServices.
+// If tests install their own AppServices mock before this file runs, the mock
+// remains authoritative while still being exposed through AppServices.
 ;(function () {
-	if (window.firebase && window.firebase.__appServicesAdapter !== true) {
-		const firebaseAuth =
-			typeof window.firebase.auth === "function" ? window.firebase.auth() : null
-		const firebaseDb =
-			typeof window.firebase.firestore === "function"
-				? window.firebase.firestore()
-				: null
-		const firebaseFunctions =
-			typeof window.firebase.functions === "function"
-				? window.firebase.functions()
-				: null
-		window.AppServices = window.AppServices || {
-			auth: firebaseAuth,
-			db: firebaseDb,
-			functions: firebaseFunctions,
-			functionsService: firebaseFunctions,
-			getAccessToken: () => "",
-			serverTimestamp: () => window.firebase.firestore.FieldValue.serverTimestamp(),
-			timestampFromMillis: (millis) =>
-				window.firebase.firestore.Timestamp.fromMillis(millis),
-			increment: (amount) => window.firebase.firestore.FieldValue.increment(amount),
-			documentIdField: () => window.firebase.firestore.FieldPath.documentId(),
-			emailCredential: (email, password) =>
-				window.firebase.auth.EmailAuthProvider.credential(email, password),
-			googleProvider: () => new window.firebase.auth.GoogleAuthProvider(),
-			Persistence: window.firebase.auth.Auth.Persistence,
-		}
+	if (window.AppServices?.__appServicesMock === true) {
 		return
 	}
 
@@ -1032,18 +1006,5 @@
 		googleProvider: () => new authFactory.GoogleAuthProvider(),
 		Persistence: authFactory.Auth.Persistence,
 		state,
-	}
-
-	window.firebase = {
-		__appServicesAdapter: true,
-		apps: [],
-		initializeApp(config, name) {
-			const app = { config, name: name || "[DEFAULT]" }
-			this.apps.push(app)
-			return app
-		},
-		auth: authFactory,
-		firestore: firestoreFactory,
-		functions: functionsFactory,
 	}
 })()

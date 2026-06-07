@@ -3,7 +3,6 @@ const IGNORED_CONSOLE_ERROR_PATTERNS = [
 	/net::ERR_/i,
 	/fonts\.googleapis\.com/i,
 	/cdnjs\.cloudflare\.com/i,
-	/gstatic\.com\/firebasejs/i,
 ]
 
 function watchForUnexpectedPageErrors(page) {

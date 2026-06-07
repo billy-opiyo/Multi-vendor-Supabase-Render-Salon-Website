@@ -94,10 +94,11 @@ Phase 1 keeps **Cloudinary as the preferred managed media provider** because the
 
 Supabase Storage remains available for future use, but no active bucket policy is required yet. See `storage/README.md`.
 
-## Current limitations
+## Phase 9 deployment notes
 
-- No Render backend exists yet. That is Phase 2.
-- No booking creation/cancellation/rescheduling endpoints exist yet. Those are Phase 4.
-- No notification worker exists yet. That is Phase 5.
-- RLS policies are a first pass and should be tested/refined with Supabase integration tests.
-- Admin bootstrap still needs a controlled process once Supabase Auth users exist.
+- The Render backend now exists under `backend/` and is covered by backend tests.
+- Booking, waitlist, content, notification, security, and admin workflows are represented by Render modules and tests.
+- Render cron jobs are defined in `render.yaml` for notification outbox flushing, reminders, expired slot release, and waitlist slot-open notifications.
+- RLS policies remain the Supabase authorization foundation and should be validated against a real Supabase project before production launch.
+- Admin bootstrap still requires a controlled manual step once Supabase Auth users exist: create the first active `super_admin` row in `public.admin_users` using a trusted SQL/admin process.
+- See `docs/deployment.md` and `docs/migration-cleanup.md` for Phase 9 deployment and cleanup checklists.

@@ -1,7 +1,7 @@
 // Render API browser adapter.
 // ------------------------------------------------------------
 // This file is intentionally framework-free so the static public/admin pages can
-// call the Render backend without Firebase callable functions.
+// call the Render backend through the shared AppServices action facade.
 ;(function () {
 	const clientConfig = window.CLIENT_CONFIG || {}
 	const appConfig = window.APP_CONFIG || {}

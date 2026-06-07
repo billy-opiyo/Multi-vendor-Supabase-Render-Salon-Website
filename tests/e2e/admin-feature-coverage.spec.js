@@ -1,5 +1,5 @@
-const { expect, test } = require("@playwright/test")
-const { installFirebaseMock } = require("./helpers/firebase-mock")
+﻿const { expect, test } = require("@playwright/test")
+const { installAppServicesMock } = require("./helpers/app-services-mock")
 const { blockExternalNetwork } = require("./helpers/network")
 const { watchForUnexpectedPageErrors } = require("./helpers/page-errors")
 
@@ -15,7 +15,7 @@ const FULL_ADMIN = {
 }
 
 async function openAdminPageAndLogin(page, mockOptions = {}) {
-	await installFirebaseMock(page, {
+	await installAppServicesMock(page, {
 		adminUid: mockOptions.adminUid || "admin-uid",
 		adminDisplayName: mockOptions.adminDisplayName || "Admin User",
 		...mockOptions,
@@ -146,7 +146,7 @@ test.describe("admin feature coverage", () => {
 		)
 		await expect(page.locator("#adminWaitlistList")).toContainText("1st")
 
-		const state = await page.evaluate(() => window.__firebaseMockState.collections)
+		const state = await page.evaluate(() => window.__appServicesMockState.collections)
 		expect(state.reviews["review-pending"]).toMatchObject({
 			status: "approved",
 			approvedBy: "admin@royalbraids.test",

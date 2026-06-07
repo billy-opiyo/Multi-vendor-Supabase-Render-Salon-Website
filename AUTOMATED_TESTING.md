@@ -1,112 +1,92 @@
 # Automated Testing Quick Start
 
-This project now has a starter automated testing foundation for the first tools you chose:
+This project now uses the Phase 9 validation stack for the active **Supabase + Render + Vercel** architecture.
 
-1. Playwright for browser end-to-end smoke tests.
-2. Firebase Emulator Suite for safe local Firebase testing.
-3. Firebase Rules Unit Testing for `firestore.rules`.
-4. Vitest for root/frontend unit tests.
-5. Jest for Cloud Functions tests.
-6. GitHub Actions for automatic test runs on push and pull request.
+The old Firebase emulator, Firestore rules, and Cloud Functions tests remain historical reference only. They are no longer part of the root `npm test` workflow.
+
+## Active validation tools
+
+1. **Vitest** for root/static frontend configuration and Phase 9 architecture checks.
+2. **Vitest + Supertest** in `backend/` for Render API modules, middleware, service workflows, notification jobs, and integrations.
+3. **Playwright** for browser end-to-end smoke/feature tests against the static `public/` frontend using the AppServices mock and the Supabase/Render adapters.
+4. **Supabase SQL migrations** under `supabase/migrations/` as the source of truth for schema and RLS. Apply locally or in Supabase before deployment smoke checks.
 
 ## Install dependencies
 
-Use Node.js `22` for this project. Firebase Functions is configured for the
-Node `22` runtime in `functions/package.json`, and GitHub Actions also runs on
-Node `22`. If your local machine uses a newer Node version, such as Node `24`,
-`npm install --prefix functions` may show an engine warning even though CI and
-Firebase deployment target the correct runtime.
+Use Node.js `22` for this project. The repository includes `.nvmrc` and `.node-version` markers set to `22`.
 
 From the project root:
 
 ```bash
-npm install
-npm install --prefix functions
+npm ci
+npm ci --prefix backend
 npx playwright install chromium
 ```
-
-If you use a Node version manager, the repository includes `.nvmrc` and
-`.node-version` markers set to `22`.
-
-## Dependency audit notes
-
-Review npm audit findings before applying fixes. Avoid running
-`npm audit fix --force` automatically for Functions dependencies because npm may
-suggest major-version downgrades of Firebase packages, which can introduce
-runtime or API compatibility issues. Prefer conservative updates within the
-current major version first, then rerun the audit and test suite.
 
 ## Useful commands
 
 ```bash
-# Check JS syntax only
+# Check active JavaScript syntax only
 npm run check:js
 
-# Run root/unit tests
+# Run root/static frontend unit and Phase 9 architecture tests
 npm run test:unit
 
-# Run Firestore rules tests through the Firestore emulator
-npm run test:rules
+# Run Render backend tests
+npm run test:backend
 
-# Run browser smoke tests
+# Run browser E2E tests against the static frontend
 npm run test:e2e
 
-# Run Functions Jest tests
-npm --prefix functions test
+# Run the non-browser Phase 9 validation subset
+npm run test:phase9
 
-# Run the main safe local checks
+# Run the full active local validation workflow
 npm test
 ```
 
-## Local Firebase emulators
+## What changed from the Firebase-era workflow
+
+- `npm test` no longer starts Firebase emulators.
+- `npm test` no longer runs Firestore rules tests.
+- `npm test` no longer runs Jest tests under `functions/`.
+- Root `check:js` no longer checks `functions/` files as active runtime code.
+- Root dependencies no longer include Firebase SDK, Firebase CLI, or Firebase rules-unit-testing packages.
+
+Legacy Firebase files may still exist in the repository as reference material until cleanup/archive work is finalized, but they are not active validation targets.
+
+## First active tests included
+
+- Public homepage smoke test and mobile horizontal-overflow check.
+- Public splash-screen progress/reveal checks.
+- Public booking/waitlist/contact/review/dashboard/gallery/blog flows through the AppServices mock.
+- Admin login, booking stats/filtering, schedule, reviews, contact inbox, waitlist, admin delegation, services, and security dashboard coverage.
+- Root client config integrity tests for white-label identity, appearance/theme preset config, catalog consistency, public contact/media values, Supabase public config, and Render API config.
+- Phase 9 architecture tests that verify:
+  - root scripts target active Supabase/Render/Vercel validation,
+  - active root dependencies do not include Firebase packages,
+  - public/admin HTML loads Supabase and Render adapters instead of Firebase browser SDKs,
+  - public client configuration does not expose private Render/Supabase/provider secrets,
+  - `render.yaml` defines Render web/cron services,
+  - every table created by the Supabase foundation migration has RLS enabled.
+- Backend tests for health checks, auth/admin middleware, booking workflows, content modules, security modules, notification providers/services/jobs, Cloudinary signing, rate limiting, and activity timeline routes.
+
+## Supabase validation notes
+
+The root Phase 9 tests statically check that all migration-created tables have RLS enabled. Manual or CI Supabase database validation should still apply migrations to a real local/remote Supabase project:
 
 ```bash
-# Start Auth + Firestore emulators
-npm run emulators
-
-# Start Auth + Firestore + Functions emulators
-npm run emulators:functions
+supabase db push
 ```
 
-Rules tests already start the Firestore emulator automatically with `firebase emulators:exec`.
-The Firestore emulator is configured on port `18080` to avoid common local conflicts with other development tools.
-
-## First tests included
-
-- Public homepage smoke test.
-- Public mobile horizontal-overflow check.
-- Public splash-screen progress semantics, completion API/event, and reveal-state checks.
-- Public booking form flow that confirms an appointment and verifies booking + slot writes through a Firebase browser mock.
-- Public services/category rendering and “Book This Service” prefill behavior.
-- Public contact links and contact form submission flow through a Firebase browser mock.
-- Public feature coverage for theme persistence, theme preset preview controls, review login gating, review sorting, and blog carousel/expand controls.
-- Public account feature coverage for email signup, dashboard unlock, authenticated review submission, and gallery favorite login/save behavior.
-- Public mobile/tablet responsive checks across important customer-facing sections.
-- Admin login page smoke test.
-- Admin login success flow that unlocks the dashboard and renders booking statistics through a Firebase browser mock.
-- Admin feature coverage for review moderation writes, contact-message status updates, message status filters, waitlist queue rendering, security-only permission gating, security metrics, alert rendering, and security filters.
-- Admin mobile responsive check.
-- Firestore rules tests for public/private reads, owner profile writes, admin records, security alerts, and login activity.
-- Firestore rules tests for client booking writes, booking slot locks, and contact message writes in the Firebase emulator.
-- Firestore rules tests for waitlist ownership/admin boundaries, review visibility/submission constraints, and per-user gallery favorites.
-- Firestore rules tests for cooldown enforcement, owner/admin booking status transitions, booking-slot deletes, content-admin writes, contact inbox protection, and user-session collection-group visibility.
-- Client config unit tests for white-label identity, appearance/theme preset config, catalog consistency, and public contact/media values.
-- Functions config and waitlist action-message Jest tests.
-
-These are intentionally safe starter tests. They do not submit real bookings or write to production Firebase.
-
-The E2E browser flow tests use a local Firebase compatibility mock so they can
-verify page behavior and submitted payloads without touching production data.
-The Firestore rules tests use the Firebase Emulator Suite to verify the real
-security rules that protect booking/contact writes.
-
-The Playwright smoke tests block external network requests so they do not depend on Google Fonts, CDN assets, Firebase Auth iframes, or live production Firebase during local/CI smoke testing.
+If the Supabase CLI is unavailable, apply SQL files through the Supabase Dashboard SQL editor in timestamp order.
 
 ## Coverage map
 
-Use this checklist when adding new features so automated coverage stays balanced:
+Use this checklist when adding new Supabase/Render/Vercel features so automated coverage stays balanced:
 
-- **Public E2E:** splash/reveal behavior, customer navigation, theme persistence/theme preset preview, booking/waitlist, auth/dashboard, reviews, favorites, contact, blog/gallery/service rendering, and responsive layout.
+- **Public E2E:** customer navigation, theme persistence/theme preset preview, booking/waitlist, auth/dashboard, reviews, favorites, contact, blog/gallery/service rendering, Render API adapter interactions, and responsive layout.
 - **Admin E2E:** admin auth/permissions, booking lifecycle, schedule, content management, review moderation, contact inbox sorting/filtering, waitlist queue actions, services settings, admin delegation, and security dashboards.
-- **Firestore rules:** public read boundaries, authenticated owner CRUD, admin permission boundaries, rate limits, server-managed collections, status transitions, and collection-group reads.
-- **Unit/Functions:** white-label config integrity, appearance/theme preset config, reusable pure helpers, message builders, and Cloud Function-adjacent pure modules that can be tested without network or production Firebase access.
+- **Backend tests:** Render route contracts, service-layer business rules, transaction orchestration, admin authorization, rate limiting, notification idempotency, scheduled jobs, and provider dry-run behavior.
+- **Supabase/RLS checks:** migration-created tables, RLS enablement, public read boundaries, authenticated owner access, admin permission boundaries, and service-role-only tables.
+- **Root/unit checks:** white-label config integrity, adapter safety, public-only browser config, and Phase 9 architecture guardrails.

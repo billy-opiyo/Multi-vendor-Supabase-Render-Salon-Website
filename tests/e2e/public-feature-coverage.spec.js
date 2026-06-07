@@ -1,12 +1,12 @@
-const { expect, test } = require("@playwright/test")
-const { installFirebaseMock } = require("./helpers/firebase-mock")
+﻿const { expect, test } = require("@playwright/test")
+const { installAppServicesMock } = require("./helpers/app-services-mock")
 const { blockExternalNetwork } = require("./helpers/network")
 const { watchForUnexpectedPageErrors } = require("./helpers/page-errors")
 
-async function openPublicPageWithFirebaseMock(page, mockOptions = {}) {
-	const { pagePath = "/", splashDurationMs = 0, ...firebaseMockOptions } =
+async function openPublicPageWithAppServicesMock(page, mockOptions = {}) {
+	const { pagePath = "/", splashDurationMs = 0, ...appServicesMockOptions } =
 		mockOptions
-	await installFirebaseMock(page, firebaseMockOptions)
+	await installAppServicesMock(page, appServicesMockOptions)
 	await page.addInitScript((durationMs) => {
 		window.ROYAL_BRAIDS_SPLASH_DURATION_MS = durationMs
 	}, splashDurationMs)
@@ -41,7 +41,7 @@ test.describe("public feature coverage", () => {
 	test("splash screen exposes progress semantics and completes cleanly", async ({
 		page,
 	}) => {
-		const pageErrors = await openPublicPageWithFirebaseMock(page, {
+		const pageErrors = await openPublicPageWithAppServicesMock(page, {
 			splashDurationMs: 100000,
 		})
 
@@ -88,7 +88,7 @@ test.describe("public feature coverage", () => {
 	})
 
 	test("dark mode toggle persists selection across reload", async ({ page }) => {
-		const pageErrors = await openPublicPageWithFirebaseMock(page)
+		const pageErrors = await openPublicPageWithAppServicesMock(page)
 
 		await expect(page.locator("body")).not.toHaveClass(/light-mode/)
 		await page.locator("#darkModeToggle").click()
@@ -103,7 +103,7 @@ test.describe("public feature coverage", () => {
 	test("theme preset preview is opt-in and controls the page preset", async ({
 		page,
 	}) => {
-		const pageErrors = await openPublicPageWithFirebaseMock(page)
+		const pageErrors = await openPublicPageWithAppServicesMock(page)
 
 		await expect(page.locator(".theme-preset-preview")).toHaveCount(0)
 
@@ -141,7 +141,7 @@ test.describe("public feature coverage", () => {
 	})
 
 	test("review submit section enforces login gate for guests", async ({ page }) => {
-		const pageErrors = await openPublicPageWithFirebaseMock(page)
+		const pageErrors = await openPublicPageWithAppServicesMock(page)
 
 		await page.locator('a[href="#testimonials"]').first().click()
 		await expect(page.locator("#reviewAuthHint")).toBeVisible()
@@ -155,7 +155,7 @@ test.describe("public feature coverage", () => {
 	})
 
 	test("review sorting controls can switch between available strategies", async ({ page }) => {
-		const pageErrors = await openPublicPageWithFirebaseMock(page)
+		const pageErrors = await openPublicPageWithAppServicesMock(page)
 
 		await page.locator('a[href="#testimonials"]').first().click()
 		await expect(page.locator("#reviewsSortSelect")).toBeVisible()
@@ -170,7 +170,7 @@ test.describe("public feature coverage", () => {
 	})
 
 	test("blog section exposes carousel and expand/collapse controls", async ({ page }) => {
-		const pageErrors = await openPublicPageWithFirebaseMock(page)
+		const pageErrors = await openPublicPageWithAppServicesMock(page)
 
 		await page.locator('a[href="#blog"]').first().click()
 		await expect(page.locator("#blogGrid")).toBeVisible()
@@ -189,7 +189,7 @@ test.describe("public feature coverage", () => {
 	test("email signup unlocks dashboard and authenticated review submission", async ({
 		page,
 	}) => {
-		const pageErrors = await openPublicPageWithFirebaseMock(page, {
+		const pageErrors = await openPublicPageWithAppServicesMock(page, {
 			emailPasswordUid: "review-client-uid",
 			emailPasswordDisplayName: "Review Client",
 		})
@@ -215,7 +215,7 @@ test.describe("public feature coverage", () => {
 			/pending approval/i,
 		)
 
-		const state = await page.evaluate(() => window.__firebaseMockState)
+		const state = await page.evaluate(() => window.__appServicesMockState)
 		const reviews = Object.values(state.collections.reviews || {})
 		const users = Object.values(state.collections.users || {})
 
@@ -243,7 +243,7 @@ test.describe("public feature coverage", () => {
 	test("gallery favorites require login and save to the signed-in dashboard", async ({
 		page,
 	}) => {
-		const pageErrors = await openPublicPageWithFirebaseMock(page, {
+		const pageErrors = await openPublicPageWithAppServicesMock(page, {
 			emailPasswordUid: "favorite-client-uid",
 			emailPasswordDisplayName: "Favorite Client",
 		})
@@ -277,7 +277,7 @@ test.describe("public feature coverage", () => {
 
 		const favorites = await page.evaluate(() =>
 			Object.values(
-				window.__firebaseMockState.collections[
+				window.__appServicesMockState.collections[
 					"users/favorite-client-uid/favorites"
 				] || {},
 			),

@@ -1,5 +1,5 @@
-const { expect, test } = require("@playwright/test")
-const { installFirebaseMock } = require("./helpers/firebase-mock")
+﻿const { expect, test } = require("@playwright/test")
+const { installAppServicesMock } = require("./helpers/app-services-mock")
 const { blockExternalNetwork } = require("./helpers/network")
 const { watchForUnexpectedPageErrors } = require("./helpers/page-errors")
 
@@ -9,8 +9,8 @@ function futureDate(daysFromNow = 7) {
 	return date.toISOString().split("T")[0]
 }
 
-async function openPublicPageWithFirebaseMock(page, mockOptions = {}) {
-	await installFirebaseMock(page, mockOptions)
+async function openPublicPageWithAppServicesMock(page, mockOptions = {}) {
+	await installAppServicesMock(page, mockOptions)
 	await blockExternalNetwork(page)
 	const pageErrors = watchForUnexpectedPageErrors(page)
 	await page.goto("/", { waitUntil: "domcontentloaded" })
@@ -46,7 +46,7 @@ test.describe("public website user flows", () => {
 	test("booking form confirms an appointment and records booking + slot writes", async ({
 		page,
 	}) => {
-		const pageErrors = await openPublicPageWithFirebaseMock(page)
+		const pageErrors = await openPublicPageWithAppServicesMock(page)
 
 		await expect(page.locator("#bookingForm")).toBeVisible()
 		await expect
@@ -79,7 +79,7 @@ test.describe("public website user flows", () => {
 		)
 
 		const writes = await page.evaluate(
-			() => window.__firebaseMockState.collections,
+			() => window.__appServicesMockState.collections,
 		)
 		const bookings = Object.values(writes.bookings || {})
 		const bookingSlots = Object.values(writes.bookingSlots || {})
@@ -109,7 +109,7 @@ test.describe("public website user flows", () => {
 		const bookedTime = "9:00 AM"
 		const stylistKey = "fatima"
 		const slotId = bookingSlotId(bookedDate, stylistKey, bookedTime)
-		const pageErrors = await openPublicPageWithFirebaseMock(page, {
+		const pageErrors = await openPublicPageWithAppServicesMock(page, {
 			initialCollections: {
 				bookingSlots: {
 					[slotId]: {
@@ -153,7 +153,7 @@ test.describe("public website user flows", () => {
 	test("service categories render and service booking buttons prefill the booking form", async ({
 		page,
 	}) => {
-		const pageErrors = await openPublicPageWithFirebaseMock(page)
+		const pageErrors = await openPublicPageWithAppServicesMock(page)
 
 		await expect(
 			page.locator("#servicesGrid .service-card").first(),
@@ -191,7 +191,7 @@ test.describe("public website user flows", () => {
 	test("contact form and contact links are wired for customers", async ({
 		page,
 	}) => {
-		const pageErrors = await openPublicPageWithFirebaseMock(page)
+		const pageErrors = await openPublicPageWithAppServicesMock(page)
 
 		await expect(page.locator('a[href^="tel:"]').first()).toHaveAttribute(
 			"href",
@@ -222,7 +222,7 @@ test.describe("public website user flows", () => {
 
 		const contactMessages = await page.evaluate(() =>
 			Object.values(
-				window.__firebaseMockState.collections.contactMessages || {},
+				window.__appServicesMockState.collections.contactMessages || {},
 			),
 		)
 		expect(contactMessages).toHaveLength(1)
@@ -238,7 +238,7 @@ test.describe("public website user flows", () => {
 	test("public page stays responsive on mobile and tablet widths", async ({
 		page,
 	}) => {
-		const pageErrors = await openPublicPageWithFirebaseMock(page)
+		const pageErrors = await openPublicPageWithAppServicesMock(page)
 
 		for (const viewport of [
 			{ width: 390, height: 900 },
