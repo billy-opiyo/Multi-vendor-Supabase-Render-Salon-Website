@@ -67,6 +67,10 @@ const envSchema = z
 		WHATSAPP_ACCESS_TOKEN: optionalSecret,
 		WHATSAPP_PHONE_NUMBER_ID: optionalSecret,
 		WHATSAPP_GRAPH_API_VERSION: optionalNonEmptyString.default("v21.0"),
+		CLOUDINARY_CLOUD_NAME: optionalSecret,
+		CLOUDINARY_API_KEY: optionalSecret,
+		CLOUDINARY_API_SECRET: optionalSecret,
+		CLOUDINARY_UPLOAD_FOLDER: optionalSecret,
 		JOB_SECRET: optionalSecret,
 		NOTIFICATION_DRY_RUN: booleanFromEnv.default(false),
 		UPCOMING_REMINDER_WINDOW_MINUTES: z.coerce
