@@ -6,12 +6,14 @@ const morgan = require("morgan")
 const { corsOptions } = require("./config/cors")
 const { isTest } = require("./config/env")
 const healthRoutes = require("./routes/health.routes")
+const activityTimelineRoutes = require("./modules/activityTimeline/activityTimeline.routes")
 const adminRoutes = require("./modules/admins/admin.routes")
 const authRoutes = require("./modules/auth/auth.routes")
 const bookingRoutes = require("./modules/bookings/booking.routes")
 const contentRoutes = require("./modules/content/content.routes")
 const notificationRoutes = require("./modules/notifications/notification.routes")
 const profileRoutes = require("./modules/profiles/profile.routes")
+const securityRoutes = require("./modules/security/security.routes")
 const { errorHandler, notFoundHandler } = require("./middleware/errorHandler")
 
 function createApp() {
@@ -32,6 +34,8 @@ function createApp() {
 	app.use(bookingRoutes)
 	app.use(contentRoutes)
 	app.use(notificationRoutes)
+	app.use(securityRoutes)
+	app.use(activityTimelineRoutes)
 	app.use(adminRoutes)
 
 	app.use(notFoundHandler)
