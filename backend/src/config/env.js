@@ -3,7 +3,12 @@ const path = require("node:path")
 const dotenv = require("dotenv")
 const { z } = require("zod")
 
-dotenv.config({ path: path.resolve(process.cwd(), ".env") })
+const backendEnvPath = path.resolve(__dirname, "..", "..", ".env")
+const cwdEnvPath = path.resolve(process.cwd(), ".env")
+
+for (const envPath of [...new Set([backendEnvPath, cwdEnvPath])]) {
+	dotenv.config({ path: envPath })
+}
 
 const booleanFromEnv = z.preprocess((value) => {
 	if (typeof value !== "string") {
@@ -23,7 +28,20 @@ const booleanFromEnv = z.preprocess((value) => {
 	return value
 }, z.boolean())
 
-const optionalSecret = z.preprocess((value) => {
+const emptyStringToUndefined = (schema) =>
+	z.preprocess((value) => {
+		if (typeof value === "string" && value.trim() === "") {
+			return undefined
+		}
+
+		return value
+	}, schema.optional())
+
+const optionalUrl = emptyStringToUndefined(z.string().url())
+
+const optionalSecret = emptyStringToUndefined(z.string().min(1))
+
+const optionalNonEmptyString = z.preprocess((value) => {
 	if (typeof value === "string" && value.trim() === "") {
 		return undefined
 	}
@@ -37,9 +55,9 @@ const envSchema = z
 			.enum(["development", "test", "production"])
 			.default("development"),
 		PORT: z.coerce.number().int().positive().default(4000),
-		SUPABASE_URL: z.string().url().optional(),
-		SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
-		SUPABASE_ANON_KEY: z.string().min(1).optional(),
+		SUPABASE_URL: optionalUrl,
+		SUPABASE_SERVICE_ROLE_KEY: optionalSecret,
+		SUPABASE_ANON_KEY: optionalSecret,
 		FRONTEND_ORIGIN: z
 			.string()
 			.min(1)
@@ -48,7 +66,7 @@ const envSchema = z
 		RESEND_FROM_EMAIL: optionalSecret,
 		WHATSAPP_ACCESS_TOKEN: optionalSecret,
 		WHATSAPP_PHONE_NUMBER_ID: optionalSecret,
-		WHATSAPP_GRAPH_API_VERSION: z.string().min(1).default("v21.0"),
+		WHATSAPP_GRAPH_API_VERSION: optionalNonEmptyString.default("v21.0"),
 		JOB_SECRET: optionalSecret,
 		NOTIFICATION_DRY_RUN: booleanFromEnv.default(false),
 		UPCOMING_REMINDER_WINDOW_MINUTES: z.coerce
