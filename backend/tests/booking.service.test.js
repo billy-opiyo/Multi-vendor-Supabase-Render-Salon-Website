@@ -1,11 +1,16 @@
 process.env.NODE_ENV = "test"
 
 const { ApiError } = require("../src/utils/errors")
-const { createBookingService } = require("../src/modules/bookings/booking.service")
+const {
+	createBookingService,
+} = require("../src/modules/bookings/booking.service")
 const {
 	BOOKING_STATUSES,
 	WAITLIST_STATUSES,
 } = require("../src/modules/bookings/booking.constants")
+const {
+	NOTIFICATION_TEMPLATE_KEYS,
+} = require("../src/modules/notifications/notification.constants")
 
 const customerUser = {
 	id: "00000000-0000-4000-8000-000000000101",
@@ -183,10 +188,25 @@ function createRepository(overrides = {}) {
 	}
 }
 
+function createNotificationServiceMock(overrides = {}) {
+	return {
+		queueBookingNotification: vi.fn().mockResolvedValue({ queued: [] }),
+		queueWaitlistNotification: vi.fn().mockResolvedValue({ queued: [] }),
+		queueWaitlistSlotOpenNotifications: vi
+			.fn()
+			.mockResolvedValue({ queued: [] }),
+		...overrides,
+	}
+}
+
 describe("booking service", () => {
 	it("creates a pending booking and marks an available slot taken", async () => {
 		const bookingRepository = createRepository()
-		const service = createBookingService({ bookingRepository })
+		const notificationService = createNotificationServiceMock()
+		const service = createBookingService({
+			bookingRepository,
+			notificationService,
+		})
 
 		const result = await service.createBooking(customerUser, createPayload)
 
@@ -216,6 +236,11 @@ describe("booking service", () => {
 				to_status: BOOKING_STATUSES.PENDING,
 			}),
 		)
+		expect(notificationService.queueBookingNotification).toHaveBeenCalledWith(
+			result.booking,
+			NOTIFICATION_TEMPLATE_KEYS.BOOKING_CREATED,
+			expect.objectContaining({ slot: result.slot }),
+		)
 	})
 
 	it("creates a waitlisted booking when the requested slot is already occupied", async () => {
@@ -228,7 +253,11 @@ describe("booking service", () => {
 		const bookingRepository = createRepository({
 			findSlotByIdentity: vi.fn().mockResolvedValue(occupiedSlot),
 		})
-		const service = createBookingService({ bookingRepository })
+		const notificationService = createNotificationServiceMock()
+		const service = createBookingService({
+			bookingRepository,
+			notificationService,
+		})
 
 		const result = await service.createBooking(customerUser, createPayload)
 
@@ -247,6 +276,15 @@ describe("booking service", () => {
 			expect.objectContaining({
 				preferred_slot_id: occupiedSlot.id,
 				status: WAITLIST_STATUSES.WAITING,
+			}),
+		)
+		expect(notificationService.queueWaitlistNotification).toHaveBeenCalledWith(
+			result.waitlistEntry,
+			NOTIFICATION_TEMPLATE_KEYS.WAITLIST_JOINED,
+			expect.objectContaining({
+				booking: result.booking,
+				slot: occupiedSlot,
+				markWaitlistNotified: false,
 			}),
 		)
 	})
@@ -392,7 +430,9 @@ describe("booking service", () => {
 	})
 
 	it("exports ApiError-compatible failures for invalid time parsing", () => {
-		const service = createBookingService({ bookingRepository: createRepository() })
+		const service = createBookingService({
+			bookingRepository: createRepository(),
+		})
 
 		expect(service).toBeDefined()
 		expect(new ApiError(400, "example", "Example")).toMatchObject({

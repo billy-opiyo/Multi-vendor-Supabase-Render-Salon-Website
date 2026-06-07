@@ -5,6 +5,32 @@ const { z } = require("zod")
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env") })
 
+const booleanFromEnv = z.preprocess((value) => {
+	if (typeof value !== "string") {
+		return value
+	}
+
+	const normalized = value.trim().toLowerCase()
+
+	if (["1", "true", "yes", "on"].includes(normalized)) {
+		return true
+	}
+
+	if (["0", "false", "no", "off"].includes(normalized)) {
+		return false
+	}
+
+	return value
+}, z.boolean())
+
+const optionalSecret = z.preprocess((value) => {
+	if (typeof value === "string" && value.trim() === "") {
+		return undefined
+	}
+
+	return value
+}, z.string().min(1).optional())
+
 const envSchema = z
 	.object({
 		NODE_ENV: z
@@ -18,6 +44,19 @@ const envSchema = z
 			.string()
 			.min(1)
 			.default("http://localhost:3000,http://127.0.0.1:3000"),
+		RESEND_API_KEY: optionalSecret,
+		RESEND_FROM_EMAIL: optionalSecret,
+		WHATSAPP_ACCESS_TOKEN: optionalSecret,
+		WHATSAPP_PHONE_NUMBER_ID: optionalSecret,
+		WHATSAPP_GRAPH_API_VERSION: z.string().min(1).default("v21.0"),
+		JOB_SECRET: optionalSecret,
+		NOTIFICATION_DRY_RUN: booleanFromEnv.default(false),
+		UPCOMING_REMINDER_WINDOW_MINUTES: z.coerce
+			.number()
+			.int()
+			.positive()
+			.default(1440),
+		EXPIRED_SLOT_GRACE_MINUTES: z.coerce.number().int().positive().default(60),
 	})
 	.superRefine((value, ctx) => {
 		if (value.NODE_ENV === "test") {

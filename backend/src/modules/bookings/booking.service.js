@@ -1,6 +1,15 @@
+const { isTest } = require("../../config/env")
 const { getSupabaseAdmin } = require("../../db/supabaseAdmin")
 const { ApiError } = require("../../utils/errors")
 const { pickDefined } = require("../../utils/validation")
+const {
+	BOOKING_STATUS_NOTIFICATION_TEMPLATES,
+	NOTIFICATION_TEMPLATE_KEYS,
+} = require("../notifications/notification.constants")
+const {
+	createNoopNotificationService,
+	createNotificationService,
+} = require("../notifications/notification.service")
 const {
 	BOOKING_STATUSES,
 	DEFAULT_SLOT_DURATION_MINUTES,
@@ -37,15 +46,19 @@ function assertBookingOwnership(booking, authUser) {
 }
 
 function slugifyStylistKey(value) {
-	return String(value || DEFAULT_STYLIST_KEY)
-		.trim()
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, "-")
-		.replace(/^-+|-+$/g, "") || DEFAULT_STYLIST_KEY
+	return (
+		String(value || DEFAULT_STYLIST_KEY)
+			.trim()
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, "-")
+			.replace(/^-+|-+$/g, "") || DEFAULT_STYLIST_KEY
+	)
 }
 
 function parseAppointmentTimeToMinutes(time) {
-	const normalized = String(time || "").trim().toLowerCase()
+	const normalized = String(time || "")
+		.trim()
+		.toLowerCase()
 	const match = normalized.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/)
 
 	if (!match) {
@@ -294,9 +307,40 @@ function buildActivity({
 	}
 }
 
-function createBookingService({ bookingRepository } = {}) {
+function createBookingService({ bookingRepository, notificationService } = {}) {
 	const repository =
 		bookingRepository || createBookingRepository(getSupabaseAdmin())
+	const notifications =
+		notificationService ||
+		(isTest ? createNoopNotificationService() : createNotificationService())
+
+	async function queueBookingNotification(booking, templateKey, options = {}) {
+		return notifications.queueBookingNotification(booking, templateKey, options)
+	}
+
+	async function queueWaitlistNotification(
+		waitlistEntry,
+		templateKey,
+		options = {},
+	) {
+		return notifications.queueWaitlistNotification(
+			waitlistEntry,
+			templateKey,
+			options,
+		)
+	}
+
+	async function queueSlotOpenNotifications(queue, slot, options = {}) {
+		if (!slot || !queue?.length) {
+			return { queued: [], skipped: true }
+		}
+
+		return notifications.queueWaitlistSlotOpenNotifications(
+			queue,
+			slot,
+			options,
+		)
+	}
 
 	async function getOrCreateSlot(slotValues) {
 		const existing = await repository.findSlotByIdentity(slotValues)
@@ -322,7 +366,14 @@ function createBookingService({ bookingRepository } = {}) {
 		}
 	}
 
-	async function insertStatusEvent(booking, fromStatus, toStatus, actorUserId, reason, metadata = {}) {
+	async function insertStatusEvent(
+		booking,
+		fromStatus,
+		toStatus,
+		actorUserId,
+		reason,
+		metadata = {},
+	) {
 		return repository.insertStatusEvent({
 			tenant_id: booking.tenant_id,
 			booking_id: booking.id,
@@ -358,7 +409,12 @@ function createBookingService({ bookingRepository } = {}) {
 		return repository.bulkUpdateWaitlistPositions(updates)
 	}
 
-	async function createWaitlistedBooking(authUser, payload, slot, metadata = {}) {
+	async function createWaitlistedBooking(
+		authUser,
+		payload,
+		slot,
+		metadata = {},
+	) {
 		const waitlistEntry = await repository.createWaitlistEntry(
 			buildWaitlistValues(authUser, payload, slot),
 		)
@@ -399,13 +455,27 @@ function createBookingService({ bookingRepository } = {}) {
 				actorUserId: authUser.id,
 				activityType: "waitlist_updated",
 				title: "Booking added to waitlist",
-				description: "Requested slot was unavailable, so the booking was added to the waitlist.",
+				description:
+					"Requested slot was unavailable, so the booking was added to the waitlist.",
 				metadata: {
 					waitlist_id: refreshedWaitlistEntry.id,
 					queue_position: refreshedWaitlistEntry.queue_position,
 					queue_size: refreshedWaitlistEntry.queue_size,
 				},
 			}),
+		)
+		await queueWaitlistNotification(
+			refreshedWaitlistEntry,
+			NOTIFICATION_TEMPLATE_KEYS.WAITLIST_JOINED,
+			{
+				booking,
+				slot,
+				markWaitlistNotified: false,
+				source: "render_booking_api",
+				metadata: {
+					reason: metadata.reason || "slot_unavailable",
+				},
+			},
 		)
 
 		return {
@@ -425,7 +495,9 @@ function createBookingService({ bookingRepository } = {}) {
 		const releasedSlot = await repository.releaseSlot(booking.slot_id, {
 			release_reason: reason,
 		})
-		const queue = await recalculateWaitlistQueue(queueFiltersFromSlot(releasedSlot))
+		const queue = await recalculateWaitlistQueue(
+			queueFiltersFromSlot(releasedSlot),
+		)
 
 		return { releasedSlot, queue }
 	}
@@ -460,15 +532,21 @@ function createBookingService({ bookingRepository } = {}) {
 			updateValues[timestampField] = now
 		}
 
-		const updatedBooking = await repository.updateBooking(booking.id, updateValues)
+		const updatedBooking = await repository.updateBooking(
+			booking.id,
+			updateValues,
+		)
 
 		let waitlistEntry = null
 		let queue = []
 
 		if (booking.waitlist_id && toStatus === BOOKING_STATUSES.CANCELLED) {
-			waitlistEntry = await repository.updateWaitlistEntry(booking.waitlist_id, {
-				status: WAITLIST_STATUSES.CANCELLED,
-			})
+			waitlistEntry = await repository.updateWaitlistEntry(
+				booking.waitlist_id,
+				{
+					status: WAITLIST_STATUSES.CANCELLED,
+				},
+			)
 			queue = await recalculateWaitlistQueue(waitlistEntry)
 		}
 
@@ -504,6 +582,24 @@ function createBookingService({ bookingRepository } = {}) {
 				},
 			}),
 		)
+
+		const templateKey = BOOKING_STATUS_NOTIFICATION_TEMPLATES[toStatus]
+		if (templateKey) {
+			await queueBookingNotification(updatedBooking, templateKey, {
+				uniqueKey: toStatus,
+				source: "render_booking_status_workflow",
+				event: {
+					from_status: booking.status,
+					to_status: toStatus,
+					reason,
+				},
+			})
+		}
+
+		await queueSlotOpenNotifications(queue, releasedSlot, {
+			source: "render_booking_slot_release",
+			metadata: { reason },
+		})
 
 		return {
 			booking: updatedBooking,
@@ -583,6 +679,14 @@ function createBookingService({ bookingRepository } = {}) {
 						slot_id: reservedSlot.id,
 					},
 				}),
+			)
+			await queueBookingNotification(
+				booking,
+				NOTIFICATION_TEMPLATE_KEYS.BOOKING_CREATED,
+				{
+					slot: reservedSlot,
+					source: "render_booking_api",
+				},
 			)
 
 			return {
@@ -705,10 +809,15 @@ function createBookingService({ bookingRepository } = {}) {
 				throw error
 			}
 
+			let releasedPreviousSlot = null
+			let previousSlotQueue = []
 			if (booking.slot_id && booking.slot_id !== heldTargetSlot.id) {
-				await repository.releaseSlot(booking.slot_id, {
+				releasedPreviousSlot = await repository.releaseSlot(booking.slot_id, {
 					release_reason: "booking_rescheduled",
 				})
+				previousSlotQueue = await recalculateWaitlistQueue(
+					queueFiltersFromSlot(releasedPreviousSlot),
+				)
 			}
 
 			const reservedSlot = await repository.attachSlotBooking(
@@ -736,6 +845,27 @@ function createBookingService({ bookingRepository } = {}) {
 						next_slot_id: reservedSlot.id,
 					},
 				}),
+			)
+			await queueBookingNotification(
+				updatedBooking,
+				NOTIFICATION_TEMPLATE_KEYS.BOOKING_RESCHEDULED,
+				{
+					slot: reservedSlot,
+					uniqueKey: reservedSlot.starts_at,
+					source: "render_booking_api",
+					event: {
+						previous_slot_id: booking.slot_id,
+						next_slot_id: reservedSlot.id,
+					},
+				},
+			)
+			await queueSlotOpenNotifications(
+				previousSlotQueue,
+				releasedPreviousSlot,
+				{
+					source: "render_booking_reschedule",
+					metadata: { reason: "booking_rescheduled" },
+				},
 			)
 
 			return {
@@ -835,7 +965,8 @@ function createBookingService({ bookingRepository } = {}) {
 				throw new ApiError(404, "booking_not_found", "Booking was not found.")
 			}
 
-			const targetStatus = payload.status ||
+			const targetStatus =
+				payload.status ||
 				(isTerminalBookingStatus(booking.status)
 					? booking.status
 					: BOOKING_STATUSES.CANCELLED)
@@ -888,6 +1019,15 @@ function createBookingService({ bookingRepository } = {}) {
 					reason: payload.reason,
 				},
 			})
+
+			if (targetStatus === booking.status) {
+				await queueSlotOpenNotifications(result.queue, result.releasedSlot, {
+					source: "render_admin_slot_release",
+					metadata: {
+						reason: payload.reason || "admin_released_slot",
+					},
+				})
+			}
 
 			return result
 		},
@@ -1047,12 +1187,64 @@ function createBookingService({ bookingRepository } = {}) {
 					reason: payload.reason,
 				},
 			})
+			await queueBookingNotification(
+				confirmedBooking,
+				NOTIFICATION_TEMPLATE_KEYS.BOOKING_CONFIRMED,
+				{
+					waitlistEntry: bookedWaitlistEntry,
+					slot: reservedSlot,
+					uniqueKey: `waitlist:${waitlistEntry.id}`,
+					source: "render_waitlist_promotion",
+				},
+			)
 
 			return {
 				booking: confirmedBooking,
 				slot: reservedSlot,
 				waitlistEntry: bookedWaitlistEntry,
 				queue,
+			}
+		},
+
+		async releaseExpiredBookingSlots(options = {}) {
+			const nowIso = options.nowIso || new Date().toISOString()
+			const graceMinutes = options.graceMinutes || 60
+			const cutoffIso =
+				options.cutoffIso ||
+				new Date(
+					new Date(nowIso).getTime() - graceMinutes * 60 * 1000,
+				).toISOString()
+			const candidates = await repository.listExpiredActiveBookings({
+				cutoffIso,
+				limit: options.limit || 50,
+			})
+			const released = []
+
+			for (const booking of candidates) {
+				const toStatus =
+					booking.status === BOOKING_STATUSES.CONFIRMED
+						? BOOKING_STATUSES.NO_SHOW
+						: BOOKING_STATUSES.EXPIRED
+				const result = await updateBookingStatusWorkflow({
+					booking,
+					toStatus,
+					actorUserId: options.actorUserId || null,
+					reason: options.reason || "scheduled_slot_expiration",
+					metadata: {
+						...(options.metadata || {}),
+						source: "render_expired_slot_job",
+						cutoff_at: cutoffIso,
+					},
+					releaseSlot: Boolean(booking.slot_id),
+				})
+
+				released.push(result)
+			}
+
+			return {
+				cutoffIso,
+				candidates: candidates.length,
+				released,
 			}
 		},
 	}

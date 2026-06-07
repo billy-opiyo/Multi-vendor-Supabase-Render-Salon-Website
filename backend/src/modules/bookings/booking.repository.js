@@ -28,7 +28,9 @@ function throwRepositoryError(error, statusCode, code, message) {
 }
 
 function applyNullableTenantFilter(query, tenantId) {
-	return tenantId ? query.eq("tenant_id", tenantId) : query.is("tenant_id", null)
+	return tenantId
+		? query.eq("tenant_id", tenantId)
+		: query.is("tenant_id", null)
 }
 
 function createBookingRepository(supabase) {
@@ -188,7 +190,10 @@ function createBookingRepository(supabase) {
 				.select(BOOKING_SELECT)
 				.eq("user_id", userId)
 				.order("starts_at", { ascending: false })
-				.range(filters.offset || 0, (filters.offset || 0) + (filters.limit || 50) - 1)
+				.range(
+					filters.offset || 0,
+					(filters.offset || 0) + (filters.limit || 50) - 1,
+				)
 
 			if (filters.status) {
 				query = query.eq("status", filters.status)
@@ -211,7 +216,10 @@ function createBookingRepository(supabase) {
 				.from("bookings")
 				.select(BOOKING_SELECT)
 				.order("starts_at", { ascending: false })
-				.range(filters.offset || 0, (filters.offset || 0) + (filters.limit || 50) - 1)
+				.range(
+					filters.offset || 0,
+					(filters.offset || 0) + (filters.limit || 50) - 1,
+				)
 
 			if (filters.status) {
 				query = query.eq("status", filters.status)
@@ -224,6 +232,25 @@ function createBookingRepository(supabase) {
 				500,
 				"admin_booking_list_failed",
 				"Unable to list admin bookings.",
+			)
+
+			return data || []
+		},
+
+		async listExpiredActiveBookings({ cutoffIso, limit = 50 } = {}) {
+			const { data, error } = await supabase
+				.from("bookings")
+				.select(BOOKING_SELECT)
+				.in("status", ["pending", "confirmed"])
+				.lte("starts_at", cutoffIso)
+				.order("starts_at", { ascending: true })
+				.limit(limit)
+
+			throwRepositoryError(
+				error,
+				500,
+				"expired_booking_list_failed",
+				"Unable to list expired active bookings.",
 			)
 
 			return data || []
@@ -295,7 +322,10 @@ function createBookingRepository(supabase) {
 				.from("waitlist_entries")
 				.select(WAITLIST_SELECT)
 				.order("created_at", { ascending: true })
-				.range(filters.offset || 0, (filters.offset || 0) + (filters.limit || 50) - 1)
+				.range(
+					filters.offset || 0,
+					(filters.offset || 0) + (filters.limit || 50) - 1,
+				)
 
 			if (filters.status) {
 				query = query.eq("status", filters.status)

@@ -9,6 +9,7 @@ const healthRoutes = require("./routes/health.routes")
 const adminRoutes = require("./modules/admins/admin.routes")
 const authRoutes = require("./modules/auth/auth.routes")
 const bookingRoutes = require("./modules/bookings/booking.routes")
+const notificationRoutes = require("./modules/notifications/notification.routes")
 const profileRoutes = require("./modules/profiles/profile.routes")
 const { errorHandler, notFoundHandler } = require("./middleware/errorHandler")
 
@@ -28,6 +29,7 @@ function createApp() {
 	app.use(authRoutes)
 	app.use(profileRoutes)
 	app.use(bookingRoutes)
+	app.use(notificationRoutes)
 	app.use(adminRoutes)
 
 	app.use(notFoundHandler)

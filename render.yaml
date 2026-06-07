@@ -18,3 +18,135 @@ services:
         sync: false
       - key: FRONTEND_ORIGIN
         sync: false
+      - key: NOTIFICATION_DRY_RUN
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_GRAPH_API_VERSION
+        value: v21.0
+      - key: JOB_SECRET
+        sync: false
+      - key: UPCOMING_REMINDER_WINDOW_MINUTES
+        value: 1440
+      - key: EXPIRED_SLOT_GRACE_MINUTES
+        value: 60
+
+  - type: cron
+    name: salon-flush-notification-outbox
+    runtime: node
+    rootDir: backend
+    schedule: "*/5 * * * *"
+    buildCommand: npm ci
+    startCommand: npm run job:notifications
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: NOTIFICATION_DRY_RUN
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_GRAPH_API_VERSION
+        value: v21.0
+
+  - type: cron
+    name: salon-upcoming-booking-reminders
+    runtime: node
+    rootDir: backend
+    schedule: "0 * * * *"
+    buildCommand: npm ci
+    startCommand: npm run job:reminders
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: UPCOMING_REMINDER_WINDOW_MINUTES
+        value: 1440
+      - key: NOTIFICATION_DRY_RUN
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_GRAPH_API_VERSION
+        value: v21.0
+
+  - type: cron
+    name: salon-release-expired-booking-slots
+    runtime: node
+    rootDir: backend
+    schedule: "*/30 * * * *"
+    buildCommand: npm ci
+    startCommand: npm run job:release-expired-slots
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: EXPIRED_SLOT_GRACE_MINUTES
+        value: 60
+      - key: NOTIFICATION_DRY_RUN
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_GRAPH_API_VERSION
+        value: v21.0
+
+  - type: cron
+    name: salon-waitlist-slot-open-notifications
+    runtime: node
+    rootDir: backend
+    schedule: "*/15 * * * *"
+    buildCommand: npm ci
+    startCommand: npm run job:waitlist-slot-open
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: NOTIFICATION_DRY_RUN
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_GRAPH_API_VERSION
+        value: v21.0

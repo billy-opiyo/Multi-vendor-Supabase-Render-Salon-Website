@@ -6,6 +6,11 @@
 	"scripts": {
 		"dev": "node --watch src/server.js",
 		"start": "node src/server.js",
+		"job": "node src/jobs/runJob.js",
+		"job:notifications": "node src/jobs/runJob.js flushNotificationOutbox",
+		"job:reminders": "node src/jobs/runJob.js sendUpcomingBookingReminders",
+		"job:release-expired-slots": "node src/jobs/runJob.js releaseExpiredBookingSlots",
+		"job:waitlist-slot-open": "node src/jobs/runJob.js syncWaitlistSlotOpenNotifications",
 		"test": "vitest run"
 	},
 	"keywords": [
