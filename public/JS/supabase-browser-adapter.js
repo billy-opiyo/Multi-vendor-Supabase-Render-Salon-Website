@@ -614,7 +614,10 @@
 		adminUsers: {
 			path: () => "/api/v1/admin/users",
 			key: "adminUsers",
-			map: (row) => ({ ...camelizeRow(row), uid: row.user_id || row.userId }),
+			map: (row) => {
+				const data = camelizeRow(row)
+				return { ...data, uid: data.userId || row.user_id || row.userId }
+			},
 			auth: () => true,
 		},
 	}
@@ -639,13 +642,45 @@
 			const collection = ensureCollection(collectionName)
 			Object.keys(collection).forEach((id) => delete collection[id])
 			rows.map(config.map).forEach((row, index) => {
-				const id = String(row.id || `${collectionName}-${index + 1}`)
+				const id = String(
+					collectionName === "adminUsers"
+						? row.uid || row.userId || row.user_id || row.id || `${collectionName}-${index + 1}`
+						: row.id || `${collectionName}-${index + 1}`,
+				)
 				collection[id] = { ...row, id }
 			})
 			persistState()
 			return true
 		} catch (error) {
 			console.warn(`Render collection fetch failed for ${collectionName}:`, error)
+			return false
+		}
+	}
+
+	async function refreshRemoteDocument(collectionName, id) {
+		const safeId = String(id || "").trim()
+		if (collectionName !== "adminUsers" || !safeId) return false
+		const config = remoteCollections[collectionName]
+		if (!config || !window.RenderApi?.isConfigured?.()) return false
+
+		try {
+			const payload = window.RenderApi.dataOrPayload(
+				await window.RenderApi.request("/api/v1/admin/users/me", { auth: true }),
+			)
+			const source = payload?.adminUser || payload?.item || payload
+			if (!isObject(source)) return false
+
+			const row = config.map(source)
+			const documentId = String(
+				row.uid || row.userId || row.user_id || source.user_id || source.userId || safeId,
+			).trim()
+			if (!documentId) return false
+
+			ensureCollection(collectionName)[documentId] = { ...row, id: documentId }
+			persistState()
+			return documentId === safeId
+		} catch (error) {
+			console.warn(`Render document fetch failed for ${collectionName}/${safeId}:`, error)
 			return false
 		}
 	}
@@ -659,7 +694,11 @@
 				return makeCollectionRef(`${collectionName}/${safeId}/${subcollectionName}`)
 			},
 			async get() {
-				await refreshRemoteCollection(collectionName)
+				if (collectionName === "adminUsers") {
+					await refreshRemoteDocument(collectionName, safeId)
+				} else {
+					await refreshRemoteCollection(collectionName)
+				}
 				return makeSnapshot(safeId, collectionName)
 			},
 			async set(data, options = {}) {
