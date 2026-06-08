@@ -290,7 +290,7 @@ Legacy `functions/client-config.js` currently contains:
 | `contactNotificationEmail` | `billyopiyo597@gmail.com` | Render env var for single-tenant, or `site_settings.contact_notification_email` for tenant-managed config. |
 | `timezone` | `Africa/Nairobi` | Shared app/tenant setting used by Render jobs and frontend display. |
 | `utcOffsetHours` | `3` | Prefer timezone-aware date handling; keep only as fallback. |
-| `cloudinaryFolder` | `royal-braids/uploads` | Render Cloudinary signing default, optionally tenant-specific. |
+| `cloudinaryFolder` | `royal-braids/gallery` | Render Cloudinary signing default, optionally tenant-specific. |
 
 ---
 

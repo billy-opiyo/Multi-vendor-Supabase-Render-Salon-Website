@@ -999,6 +999,44 @@ Success criteria:
 
 ---
 
+## Post-Phase 9: Production Readiness and Sign-off
+
+Goal: move the new backend from implementation-complete to production-approved.
+
+Tasks:
+
+- Apply Supabase migrations to the production project.
+- Bootstrap the initial production `super_admin`.
+- Deploy the Render Blueprint and confirm the web service is healthy.
+- Configure and verify Render cron jobs.
+- Configure the Vercel frontend with production public Supabase and Render values.
+- Verify Render-only secrets are not exposed in browser/Vercel public config.
+- Run production smoke checks for booking, waitlist, admin, content, contact, notifications, and security workflows.
+- Decide whether Firebase production data migration is required or deferred.
+- Decide whether Firebase reference files are archived, removed, or temporarily retained as reference-only.
+- Complete the final go/no-go checklist.
+
+Deliverables:
+
+- `docs/production-signoff.md`
+- Captured deployment/test evidence.
+- Notification mode decision.
+- Data migration decision.
+- Firebase archive/removal decision.
+- Final production go/no-go approval.
+
+Success criteria:
+
+- Render backend and cron jobs are healthy in production.
+- Supabase production schema, RLS, Auth redirects, and admin bootstrap are verified.
+- Vercel frontend uses only public production configuration.
+- Core customer and admin workflows pass smoke testing.
+- Notification sending mode is intentional and documented.
+- Firebase is no longer an active runtime/deployment dependency.
+- Launch is approved with known deferred items documented.
+
+---
+
 ## Suggested Implementation Order
 
 Recommended order for practical development:
@@ -1012,6 +1050,7 @@ Recommended order for practical development:
 7. Replace frontend Firebase usage.
 8. Add tests and deployment workflows.
 9. Remove Firebase runtime dependencies.
+10. Complete production readiness and sign-off.
 
 Do not start by deleting legacy files. First map behavior, rebuild replacements, verify parity, then remove legacy runtime pieces safely.
 

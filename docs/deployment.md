@@ -8,6 +8,8 @@ This project targets the Phase 9 **Supabase + Render + Vercel** architecture:
 
 Firebase files in the repository are reference-only until final archive/removal. They are not active deployment targets.
 
+For the formal post-Phase 9 production go/no-go process, use [`docs/production-signoff.md`](./production-signoff.md).
+
 ## Local validation before deployment
 
 Run the active checks from the repository root:
@@ -71,35 +73,35 @@ Render injects `PORT` automatically. Locally, the backend defaults to `4000` thr
 
 `render.yaml` also defines these scheduled jobs:
 
-| Render service name | Command | Schedule |
-| --- | --- | --- |
-| `salon-flush-notification-outbox` | `npm run job:notifications` | Every 5 minutes |
-| `salon-upcoming-booking-reminders` | `npm run job:reminders` | Hourly |
-| `salon-release-expired-booking-slots` | `npm run job:release-expired-slots` | Every 30 minutes |
-| `salon-waitlist-slot-open-notifications` | `npm run job:waitlist-slot-open` | Every 15 minutes |
+| Render service name                      | Command                             | Schedule         |
+| ---------------------------------------- | ----------------------------------- | ---------------- |
+| `salon-flush-notification-outbox`        | `npm run job:notifications`         | Every 5 minutes  |
+| `salon-upcoming-booking-reminders`       | `npm run job:reminders`             | Hourly           |
+| `salon-release-expired-booking-slots`    | `npm run job:release-expired-slots` | Every 30 minutes |
+| `salon-waitlist-slot-open-notifications` | `npm run job:waitlist-slot-open`    | Every 15 minutes |
 
 ### Required Render environment variables
 
-| Variable | Required | Notes |
-| --- | --- | --- |
-| `NODE_ENV` | Yes | Set to `production` on Render. |
-| `SUPABASE_URL` | Yes | Supabase project URL, for example `https://your-project-ref.supabase.co`. |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes | Server-only key. Never expose this in Vercel or browser JavaScript. |
-| `SUPABASE_ANON_KEY` | Optional | Public anon key if a server workflow needs anon-context behavior. |
-| `FRONTEND_ORIGIN` | Yes for web service | Comma-separated allowed browser origins, for example `https://your-site.vercel.app,https://yourdomain.com`. |
-| `NOTIFICATION_DRY_RUN` | Recommended | Use `true` until provider credentials and templates are verified. |
-| `RESEND_API_KEY` | Needed for real email sends | Leave blank only when dry-running/skipping email sends. |
-| `RESEND_FROM_EMAIL` | Needed for real email sends | Verified sender/domain in Resend. |
-| `WHATSAPP_ACCESS_TOKEN` | Needed for real WhatsApp sends | WhatsApp Cloud API token. |
-| `WHATSAPP_PHONE_NUMBER_ID` | Needed for real WhatsApp sends | WhatsApp Cloud API phone number ID. |
-| `WHATSAPP_GRAPH_API_VERSION` | Yes | Defaults to `v21.0` in config/Blueprint. |
-| `CLOUDINARY_CLOUD_NAME` | Needed for signed uploads | Server-side Cloudinary setting. |
-| `CLOUDINARY_API_KEY` | Needed for signed uploads | Server-side Cloudinary setting. |
-| `CLOUDINARY_API_SECRET` | Needed for signed uploads | Server-only secret. |
-| `CLOUDINARY_UPLOAD_FOLDER` | Recommended | Default upload folder. |
-| `JOB_SECRET` | Optional | Reserved for protected job endpoints/scripts if enabled. |
-| `UPCOMING_REMINDER_WINDOW_MINUTES` | Yes | Defaults to `1440` in Blueprint. |
-| `EXPIRED_SLOT_GRACE_MINUTES` | Yes | Defaults to `60` in Blueprint. |
+| Variable                           | Required                       | Notes                                                                                                                                                    |
+| ---------------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`                         | Yes                            | Set to `production` on Render.                                                                                                                           |
+| `SUPABASE_URL`                     | Yes                            | Supabase project URL, for example `https://your-project-ref.supabase.co`.                                                                                |
+| `SUPABASE_SERVICE_ROLE_KEY`        | Yes                            | Server-only key. Never expose this in Vercel or browser JavaScript.                                                                                      |
+| `SUPABASE_ANON_KEY`                | Optional                       | Public anon key if a server workflow needs anon-context behavior.                                                                                        |
+| `FRONTEND_ORIGIN`                  | Yes for web service            | Comma-separated allowed browser origins, for example `https://your-site.vercel.app,https://yourdomain.com`.                                              |
+| `NOTIFICATION_DRY_RUN`             | Recommended                    | Use `true` until provider credentials and templates are verified.                                                                                        |
+| `RESEND_API_KEY`                   | Needed for real email sends    | Leave blank only when dry-running/skipping email sends.                                                                                                  |
+| `RESEND_FROM_EMAIL`                | Needed for real email sends    | Verified sender/domain in Resend.                                                                                                                        |
+| `WHATSAPP_ACCESS_TOKEN`            | Needed for real WhatsApp sends | WhatsApp Cloud API token.                                                                                                                                |
+| `WHATSAPP_PHONE_NUMBER_ID`         | Needed for real WhatsApp sends | WhatsApp Cloud API phone number ID.                                                                                                                      |
+| `WHATSAPP_GRAPH_API_VERSION`       | Yes                            | Defaults to `v21.0` in config/Blueprint.                                                                                                                 |
+| `CLOUDINARY_CLOUD_NAME`            | Needed for signed uploads      | Server-side Cloudinary setting.                                                                                                                          |
+| `CLOUDINARY_API_KEY`               | Needed for signed uploads      | Server-side Cloudinary setting.                                                                                                                          |
+| `CLOUDINARY_API_SECRET`            | Needed for signed uploads      | Server-only secret.                                                                                                                                      |
+| `CLOUDINARY_UPLOAD_FOLDER`         | Recommended                    | Default Cloudinary folder path, for example `royal-braids/gallery`. Cloudinary creates it on first upload. This is separate from any upload preset name. |
+| `JOB_SECRET`                       | Optional                       | Reserved for protected job endpoints/scripts if enabled.                                                                                                 |
+| `UPCOMING_REMINDER_WINDOW_MINUTES` | Yes                            | Defaults to `1440` in Blueprint.                                                                                                                         |
+| `EXPIRED_SLOT_GRACE_MINUTES`       | Yes                            | Defaults to `60` in Blueprint.                                                                                                                           |
 
 ## Local backend development
 
@@ -122,19 +124,19 @@ The current frontend is the static app under `public/`. Configure Vercel to serv
 
 Browser code must use only public values:
 
-| Public config | Where it is consumed | Notes |
-| --- | --- | --- |
-| Supabase URL | `public/client-config.js` → `APP_CONFIG.supabase.url` | Public project URL. |
-| Supabase anon key | `public/client-config.js` → `APP_CONFIG.supabase.anonKey` | Public anon key only. |
+| Public config       | Where it is consumed                                       | Notes                                    |
+| ------------------- | ---------------------------------------------------------- | ---------------------------------------- |
+| Supabase URL        | `public/client-config.js` → `APP_CONFIG.supabase.url`      | Public project URL.                      |
+| Supabase anon key   | `public/client-config.js` → `APP_CONFIG.supabase.anonKey`  | Public anon key only.                    |
 | Render API base URL | `public/client-config.js` → `APP_CONFIG.render.apiBaseUrl` | Public HTTPS URL for the Render backend. |
 
 If a future build pipeline generates `public/client-config.js` from Vercel variables, use public variable names such as:
 
-| Variable | Notes |
-| --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` or equivalent | Public Supabase URL. |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` or equivalent | Public anon key only. |
-| `NEXT_PUBLIC_RENDER_API_URL` or equivalent | Public Render backend base URL. |
+| Variable                                      | Notes                           |
+| --------------------------------------------- | ------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL` or equivalent      | Public Supabase URL.            |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` or equivalent | Public anon key only.           |
+| `NEXT_PUBLIC_RENDER_API_URL` or equivalent    | Public Render backend base URL. |
 
 Do **not** put `SUPABASE_SERVICE_ROLE_KEY`, provider secrets, webhook secrets, Resend keys, WhatsApp tokens, or Cloudinary signing secrets in Vercel public variables.
 
@@ -151,4 +153,4 @@ After deployment:
 7. Run provider checks with `NOTIFICATION_DRY_RUN=true` first, then enable real Resend/WhatsApp sends after verifying templates and recipients.
 8. Confirm Render cron job logs show successful runs for notification outbox, reminders, expired slot release, and waitlist slot-open notifications.
 
-
+Use the full sign-off checklist in [`docs/production-signoff.md`](./production-signoff.md) to capture launch evidence, migration decisions, notification mode, Firebase cleanup decisions, and final go/no-go approval.

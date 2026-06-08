@@ -45,7 +45,7 @@ values (
   'Nairobi, Kenya',
   'Africa/Nairobi',
   3,
-  'royal-braids/uploads',
+  'royal-braids/gallery',
   '{"instagram": "", "facebook": "", "tiktok": ""}'::jsonb,
   '{"preset": "royal-braids", "primaryColor": "#7c3aed"}'::jsonb,
   true

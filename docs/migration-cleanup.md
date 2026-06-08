@@ -2,6 +2,8 @@
 
 This document tracks Phase 9 migration and cleanup expectations for the active **Supabase + Render + Vercel** rebuild.
 
+For the complete post-Phase 9 launch gate, use [`docs/production-signoff.md`](./production-signoff.md). This file keeps the migration and Firebase cleanup details that feed into that sign-off.
+
 ## Migration sources and targets
 
 | Legacy source                                   | New target                                                           | Status                                                                     |
@@ -71,6 +73,8 @@ Suggested final cleanup sequence:
 5. Re-run `npm test` and deployment smoke checks.
 
 ## Manual Phase 9 sign-off checklist
+
+Use this compact checklist as the migration/cleanup portion of the full production sign-off process in [`docs/production-signoff.md`](./production-signoff.md).
 
 - [ ] Supabase migrations applied to production.
 - [ ] Initial production super admin created in `public.admin_users`.

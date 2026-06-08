@@ -13,7 +13,7 @@ POST /api/v1/uploads/cloudinary/sign
 The default development tenant seed stores:
 
 ```text
-royal-braids/uploads
+royal-braids/gallery
 ```
 
 as the Cloudinary folder convention.
