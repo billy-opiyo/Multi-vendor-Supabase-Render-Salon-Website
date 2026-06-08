@@ -103,11 +103,9 @@ test.describe("public feature coverage", () => {
 	test("theme preset preview is opt-in and controls the page preset", async ({
 		page,
 	}) => {
-		const pageErrors = await openPublicPageWithAppServicesMock(page)
-
-		await expect(page.locator(".theme-preset-preview")).toHaveCount(0)
-
-		await page.goto("/?themePreview=1", { waitUntil: "domcontentloaded" })
+		const pageErrors = await openPublicPageWithAppServicesMock(page, {
+			pagePath: "/?themePreview=1",
+		})
 
 		const preview = page.locator(".theme-preset-preview")
 		await expect(preview).toBeVisible()

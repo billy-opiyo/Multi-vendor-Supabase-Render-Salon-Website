@@ -9,13 +9,13 @@
 ;(function () {
 	const supabaseConfig = {
 		// Public Supabase project URL and anon key. These are safe for browser use.
-		url: "",
-		anonKey: "",
+		url: "https://jcxqvbhlexlwbpdtqxgv.supabase.co",
+		anonKey: "sb_publishable_Jec9opB4Cqm8sv41GaaHBg_hlXm0iC1",
 	}
 
 	const renderApiConfig = {
 		// Example: "https://salon-render-backend.onrender.com"
-		apiBaseUrl: "",
+		apiBaseUrl: "https://salon-shop-render-api.onrender.com",
 	}
 
 	const businessName = "Royal Braids"

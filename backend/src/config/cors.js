@@ -1,4 +1,5 @@
 const { allowedOrigins, isProduction } = require("./env")
+const { ApiError } = require("../utils/errors")
 
 const wildcardAllowed = allowedOrigins.includes("*")
 
@@ -14,7 +15,13 @@ const corsOptions = {
 			return
 		}
 
-		callback(new Error(`Origin not allowed by CORS: ${origin}`))
+		callback(
+			new ApiError(
+				403,
+				"cors_origin_not_allowed",
+				"Origin is not allowed by CORS policy.",
+			),
+		)
 	},
 	credentials: true,
 	optionsSuccessStatus: 204,
