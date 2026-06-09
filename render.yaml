@@ -40,10 +40,12 @@ services:
         sync: false
       - key: JOB_SECRET
         sync: false
+      - key: UPCOMING_REMINDER_LEAD_TIME_MINUTES
+        value: 120
       - key: UPCOMING_REMINDER_WINDOW_MINUTES
-        value: 1440
+        value: 15
       - key: EXPIRED_SLOT_GRACE_MINUTES
-        value: 60
+        value: 120
 
   - type: cron
     name: salon-flush-notification-outbox
@@ -78,7 +80,7 @@ services:
     name: salon-upcoming-booking-reminders
     runtime: node
     rootDir: backend
-    schedule: "0 * * * *"
+    schedule: "*/15 * * * *"
     buildCommand: npm ci
     startCommand: npm run job:reminders
     envVars:
@@ -88,8 +90,10 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
+      - key: UPCOMING_REMINDER_LEAD_TIME_MINUTES
+        value: 120
       - key: UPCOMING_REMINDER_WINDOW_MINUTES
-        value: 1440
+        value: 15
       - key: NOTIFICATION_DRY_RUN
         sync: false
       - key: RESEND_API_KEY
@@ -107,7 +111,7 @@ services:
     name: salon-release-expired-booking-slots
     runtime: node
     rootDir: backend
-    schedule: "*/30 * * * *"
+    schedule: "*/15 * * * *"
     buildCommand: npm ci
     startCommand: npm run job:release-expired-slots
     envVars:
@@ -118,7 +122,7 @@ services:
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
       - key: EXPIRED_SLOT_GRACE_MINUTES
-        value: 60
+        value: 120
       - key: NOTIFICATION_DRY_RUN
         sync: false
       - key: RESEND_API_KEY

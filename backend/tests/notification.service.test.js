@@ -232,4 +232,43 @@ describe("notification service", () => {
 			expect.objectContaining({ reason: "provider down" }),
 		)
 	})
+
+	it("queues upcoming reminders using the Firebase two-hour lead and fifteen-minute window", async () => {
+		const nowIso = "2026-07-01T03:45:00.000Z"
+		const reminderBooking = {
+			...booking,
+			status: "confirmed",
+			starts_at: "2026-07-01T05:45:00.000Z",
+		}
+		const notificationRepository = createRepository({
+			listUpcomingReminderCandidates: vi
+				.fn()
+				.mockResolvedValue([reminderBooking]),
+		})
+		const service = createNotificationService({
+			notificationRepository,
+			...createProviders(),
+		})
+
+		const result = await service.queueUpcomingBookingReminders({ nowIso })
+
+		expect(notificationRepository.listUpcomingReminderCandidates).toHaveBeenCalledWith(
+			expect.objectContaining({
+				nowIso,
+				windowStartIso: "2026-07-01T05:30:00.000Z",
+				windowEndIso: "2026-07-01T06:00:00.000Z",
+			}),
+		)
+		expect(result).toMatchObject({
+			candidates: 1,
+			leadTimeMinutes: 120,
+			windowStartIso: "2026-07-01T05:30:00.000Z",
+			windowEndIso: "2026-07-01T06:00:00.000Z",
+		})
+		expect(notificationRepository.enqueueOutbox).toHaveBeenCalledWith(
+			expect.objectContaining({
+				template_key: NOTIFICATION_TEMPLATE_KEYS.UPCOMING_BOOKING_REMINDER,
+			}),
+		)
+	})
 })

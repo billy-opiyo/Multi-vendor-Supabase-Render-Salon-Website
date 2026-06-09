@@ -6,6 +6,8 @@ const {
 } = require("../src/modules/bookings/booking.service")
 const {
 	BOOKING_STATUSES,
+	WAITLIST_SLOT_OCCUPIED_MESSAGE,
+	WAITLIST_SLOT_OCCUPIED_REASON,
 	WAITLIST_STATUSES,
 } = require("../src/modules/bookings/booking.constants")
 const {
@@ -424,9 +426,98 @@ describe("booking service", () => {
 			),
 		).rejects.toMatchObject({
 			code: "waitlist_slot_occupied",
+			message: WAITLIST_SLOT_OCCUPIED_MESSAGE,
 			statusCode: 409,
+			details: {
+				reason: WAITLIST_SLOT_OCCUPIED_REASON,
+				slotId: baseSlot.id,
+				currentBookingId: "00000000-0000-4000-8000-000000000499",
+				waitlistBookingId: waitlistedBooking.id,
+			},
 		})
 		expect(bookingRepository.updateBooking).not.toHaveBeenCalled()
+	})
+
+	it("releases expired taken slots after the Firebase two-hour grace window", async () => {
+		const nowIso = "2026-07-01T09:00:00.000Z"
+		const expiredSlot = {
+			...baseSlot,
+			taken: true,
+			booking_id: baseBooking.id,
+			user_id: customerUser.id,
+			starts_at: "2026-07-01T06:00:00.000Z",
+		}
+		const confirmedBooking = {
+			...baseBooking,
+			status: BOOKING_STATUSES.CONFIRMED,
+			slot_id: expiredSlot.id,
+			starts_at: expiredSlot.starts_at,
+		}
+		const bookingRepository = createRepository({
+			listExpiredTakenSlots: vi.fn().mockResolvedValue([expiredSlot]),
+			listExpiredActiveBookings: vi.fn().mockResolvedValue([confirmedBooking]),
+			findBookingById: vi.fn().mockResolvedValue(confirmedBooking),
+			updateBooking: vi.fn(async (_bookingId, values) => ({
+				...confirmedBooking,
+				...values,
+			})),
+		})
+		const notificationService = createNotificationServiceMock()
+		const service = createBookingService({
+			bookingRepository,
+			notificationService,
+		})
+
+		const result = await service.releaseExpiredBookingSlots({ nowIso })
+
+		expect(result.cutoffIso).toBe("2026-07-01T07:00:00.000Z")
+		expect(result.candidates).toBe(2)
+		expect(result.released).toHaveLength(1)
+		expect(result.released[0]).toMatchObject({
+			released: true,
+			reason: BOOKING_STATUSES.NO_SHOW,
+			bookingId: confirmedBooking.id,
+			bookingStatus: BOOKING_STATUSES.CONFIRMED,
+			nextBookingStatus: BOOKING_STATUSES.NO_SHOW,
+		})
+		expect(bookingRepository.updateBooking).toHaveBeenCalledWith(
+			confirmedBooking.id,
+			expect.objectContaining({
+				status: BOOKING_STATUSES.NO_SHOW,
+				no_show_at: nowIso,
+			}),
+		)
+		expect(bookingRepository.releaseSlot).toHaveBeenCalledWith(expiredSlot.id, {
+			release_reason: BOOKING_STATUSES.NO_SHOW,
+		})
+		expect(notificationService.queueWaitlistSlotOpenNotifications).toHaveBeenCalled()
+	})
+
+	it("does not release taken slots before the two-hour expired-slot grace window", async () => {
+		const nowIso = "2026-07-01T07:59:00.000Z"
+		const notYetExpiredSlot = {
+			...baseSlot,
+			taken: true,
+			booking_id: baseBooking.id,
+			user_id: customerUser.id,
+			starts_at: "2026-07-01T06:00:00.000Z",
+		}
+		const bookingRepository = createRepository({
+			listExpiredTakenSlots: vi.fn().mockResolvedValue([notYetExpiredSlot]),
+			listExpiredActiveBookings: vi.fn().mockResolvedValue([]),
+		})
+		const service = createBookingService({ bookingRepository })
+
+		const result = await service.releaseExpiredBookingSlots({ nowIso })
+
+		expect(result.released).toEqual([
+			expect.objectContaining({
+				released: false,
+				reason: "not-expired",
+			}),
+		])
+		expect(bookingRepository.updateBooking).not.toHaveBeenCalled()
+		expect(bookingRepository.releaseSlot).not.toHaveBeenCalled()
 	})
 
 	it("exports ApiError-compatible failures for invalid time parsing", () => {

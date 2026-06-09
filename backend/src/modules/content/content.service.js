@@ -3,7 +3,9 @@ const { getSupabaseAdmin } = require("../../db/supabaseAdmin")
 const {
 	createCloudinarySigner,
 } = require("../../integrations/cloudinary/cloudinarySigner")
-const { createNotificationService } = require("../notifications/notification.service")
+const {
+	createNotificationService,
+} = require("../notifications/notification.service")
 const { ApiError } = require("../../utils/errors")
 const { pickDefined } = require("../../utils/validation")
 const { createContentRepository } = require("./content.repository")
@@ -39,7 +41,33 @@ function metadataWithSource(metadata = {}, source = "render_content_service") {
 	}
 }
 
-function buildAuditLog(actorAdmin, action, resourceType, resource, changes = {}) {
+function mergeMetadata(existing = {}, next = undefined) {
+	if (next === undefined) {
+		return undefined
+	}
+
+	return {
+		...(existing || {}),
+		...(next || {}),
+	}
+}
+
+function hasReviewCustomerContentChanged(before = {}, after = {}) {
+	return (
+		String(before.review_text || "").trim() !==
+			String(after.review_text || "").trim() ||
+		Number(before.rating || 0) !== Number(after.rating || 0) ||
+		String(before.service || "").trim() !== String(after.service || "").trim()
+	)
+}
+
+function buildAuditLog(
+	actorAdmin,
+	action,
+	resourceType,
+	resource,
+	changes = {},
+) {
 	return {
 		tenant_id: resource?.tenant_id || actorAdmin?.tenant_id || null,
 		actor_user_id: actorAdmin?.user_id || null,
@@ -79,7 +107,13 @@ function createContentService({
 	const notifications = notificationService
 	const signer = cloudinarySigner || createCloudinarySigner()
 
-	async function audit(actorAdmin, action, resourceType, resource, changes = {}) {
+	async function audit(
+		actorAdmin,
+		action,
+		resourceType,
+		resource,
+		changes = {},
+	) {
 		return safeInsertAuditLog(
 			repository,
 			buildAuditLog(actorAdmin, action, resourceType, resource, changes),
@@ -87,7 +121,9 @@ function createContentService({
 	}
 
 	async function upsertSiteSettings(actorAdmin, payload) {
-		const existing = await repository.findSiteSettingsByTenant(payload.tenant_id)
+		const existing = await repository.findSiteSettingsByTenant(
+			payload.tenant_id,
+		)
 
 		if (!existing && !payload.business_name) {
 			throw new ApiError(
@@ -136,10 +172,16 @@ function createContentService({
 			...payload,
 			slug: payload.slug || slugify(payload.name, "category"),
 		})
-		await audit(actorAdmin, "service_category.created", "service_category", created, {
-			before: null,
-			after: created,
-		})
+		await audit(
+			actorAdmin,
+			"service_category.created",
+			"service_category",
+			created,
+			{
+				before: null,
+				after: created,
+			},
+		)
 		return created
 	}
 
@@ -147,14 +189,22 @@ function createContentService({
 		const updated = requireExisting(
 			await repository.updateServiceCategory(id, {
 				...payload,
-				slug: payload.slug || (payload.name ? slugify(payload.name, "category") : undefined),
+				slug:
+					payload.slug ||
+					(payload.name ? slugify(payload.name, "category") : undefined),
 			}),
 			"service_category_not_found",
 			"Service category was not found.",
 		)
-		await audit(actorAdmin, "service_category.updated", "service_category", updated, {
-			after: updated,
-		})
+		await audit(
+			actorAdmin,
+			"service_category.updated",
+			"service_category",
+			updated,
+			{
+				after: updated,
+			},
+		)
 		return updated
 	}
 
@@ -164,10 +214,16 @@ function createContentService({
 			"service_category_not_found",
 			"Service category was not found.",
 		)
-		await audit(actorAdmin, "service_category.deleted", "service_category", deleted, {
-			before: deleted,
-			after: null,
-		})
+		await audit(
+			actorAdmin,
+			"service_category.deleted",
+			"service_category",
+			deleted,
+			{
+				before: deleted,
+				after: null,
+			},
+		)
 		return deleted
 	}
 
@@ -187,12 +243,16 @@ function createContentService({
 		const updated = requireExisting(
 			await repository.updateService(id, {
 				...payload,
-				slug: payload.slug || (payload.name ? slugify(payload.name, "service") : undefined),
+				slug:
+					payload.slug ||
+					(payload.name ? slugify(payload.name, "service") : undefined),
 			}),
 			"service_not_found",
 			"Service was not found.",
 		)
-		await audit(actorAdmin, "service.updated", "service", updated, { after: updated })
+		await audit(actorAdmin, "service.updated", "service", updated, {
+			after: updated,
+		})
 		return updated
 	}
 
@@ -211,10 +271,16 @@ function createContentService({
 
 	async function createServiceVariant(actorAdmin, payload) {
 		const created = await repository.createServiceVariant(payload)
-		await audit(actorAdmin, "service_variant.created", "service_variant", created, {
-			before: null,
-			after: created,
-		})
+		await audit(
+			actorAdmin,
+			"service_variant.created",
+			"service_variant",
+			created,
+			{
+				before: null,
+				after: created,
+			},
+		)
 		return created
 	}
 
@@ -224,9 +290,15 @@ function createContentService({
 			"service_variant_not_found",
 			"Service variant was not found.",
 		)
-		await audit(actorAdmin, "service_variant.updated", "service_variant", updated, {
-			after: updated,
-		})
+		await audit(
+			actorAdmin,
+			"service_variant.updated",
+			"service_variant",
+			updated,
+			{
+				after: updated,
+			},
+		)
 		return updated
 	}
 
@@ -236,10 +308,16 @@ function createContentService({
 			"service_variant_not_found",
 			"Service variant was not found.",
 		)
-		await audit(actorAdmin, "service_variant.deleted", "service_variant", deleted, {
-			before: deleted,
-			after: null,
-		})
+		await audit(
+			actorAdmin,
+			"service_variant.deleted",
+			"service_variant",
+			deleted,
+			{
+				before: deleted,
+				after: null,
+			},
+		)
 		return deleted
 	}
 
@@ -262,7 +340,9 @@ function createContentService({
 				...payload,
 				stylist_key:
 					payload.stylist_key ||
-					(payload.display_name ? slugify(payload.display_name, "stylist") : undefined),
+					(payload.display_name
+						? slugify(payload.display_name, "stylist")
+						: undefined),
 			}),
 			"stylist_not_found",
 			"Stylist was not found.",
@@ -341,7 +421,9 @@ function createContentService({
 		const updated = requireExisting(
 			await repository.updateBlogPost(id, {
 				...payload,
-				slug: payload.slug || (payload.title ? slugify(payload.title, "post") : undefined),
+				slug:
+					payload.slug ||
+					(payload.title ? slugify(payload.title, "post") : undefined),
 				published_at:
 					payload.status === "published" && !payload.published_at
 						? now().toISOString()
@@ -413,6 +495,78 @@ function createContentService({
 		return updated
 	}
 
+	async function updateAdminReview(actorAdmin, reviewId, payload) {
+		const existing = requireExisting(
+			await repository.findReviewById(reviewId),
+			"review_not_found",
+			"Review was not found.",
+		)
+		const nowIso = now().toISOString()
+		const metadata = mergeMetadata(existing.metadata, payload.metadata)
+		const values = pickDefined({
+			status: payload.status,
+			moderation_notes: payload.moderation_notes,
+			review_text: payload.review_text,
+			rating: payload.rating,
+			service: payload.service,
+			service_id: payload.service_id,
+			moderated_by: payload.status ? actorAdmin.user_id : undefined,
+			moderated_at: payload.status ? nowIso : undefined,
+			metadata,
+		})
+
+		const updated = requireExisting(
+			await repository.updateReview(reviewId, values),
+			"review_not_found",
+			"Review was not found.",
+		)
+
+		await audit(actorAdmin, "review.updated", "review", updated, {
+			before: existing,
+			after: updated,
+		})
+
+		if (hasReviewCustomerContentChanged(existing, updated)) {
+			await safeInsertActivity(repository, {
+				tenant_id: updated.tenant_id,
+				user_id: updated.user_id,
+				activity_type: "review_edited",
+				title: "Review edited",
+				description: `${updated.customer_name} review was edited.`,
+				entity_type: "review",
+				entity_id: updated.id,
+				metadata: metadataWithSource({
+					updatedBy: actorAdmin.user_id,
+					previous: {
+						review_text: existing.review_text,
+						rating: existing.rating,
+						service: existing.service,
+					},
+					next: {
+						review_text: updated.review_text,
+						rating: updated.rating,
+						service: updated.service,
+					},
+				}),
+			})
+		}
+
+		return updated
+	}
+
+	async function deleteReview(actorAdmin, reviewId) {
+		const deleted = requireExisting(
+			await repository.deleteReview(reviewId),
+			"review_not_found",
+			"Review was not found.",
+		)
+		await audit(actorAdmin, "review.deleted", "review", deleted, {
+			before: deleted,
+			after: null,
+		})
+		return deleted
+	}
+
 	async function submitContactMessage(user, payload) {
 		const created = await repository.createContactMessage({
 			...payload,
@@ -420,19 +574,19 @@ function createContentService({
 			status: "new",
 		})
 
-		const siteSettings = await repository.findSiteSettingsByTenant(created.tenant_id)
+		const siteSettings = await repository.findSiteSettingsByTenant(
+			created.tenant_id,
+		)
 		const notificationClient = notifications || createNotificationService()
-		const notificationResult = await notificationClient.queueContactMessageNotification(
-			created,
-			{
+		const notificationResult =
+			await notificationClient.queueContactMessageNotification(created, {
 				recipientEmail:
 					siteSettings?.contact_notification_email ||
 					siteSettings?.public_email ||
 					env.RESEND_FROM_EMAIL,
 				site: siteSettings || {},
 				source: "render_contact_message_api",
-			},
-		)
+			})
 
 		await safeInsertActivity(repository, {
 			tenant_id: created.tenant_id,
@@ -468,9 +622,15 @@ function createContentService({
 			"Contact message was not found.",
 		)
 
-		await audit(actorAdmin, "contact_message.status_updated", "contact_message", updated, {
-			after: updated,
-		})
+		await audit(
+			actorAdmin,
+			"contact_message.status_updated",
+			"contact_message",
+			updated,
+			{
+				after: updated,
+			},
+		)
 
 		return updated
 	}
@@ -481,17 +641,27 @@ function createContentService({
 			"contact_message_not_found",
 			"Contact message was not found.",
 		)
-		await audit(actorAdmin, "contact_message.deleted", "contact_message", deleted, {
-			before: deleted,
-			after: null,
-		})
+		await audit(
+			actorAdmin,
+			"contact_message.deleted",
+			"contact_message",
+			deleted,
+			{
+				before: deleted,
+				after: null,
+			},
+		)
 		return deleted
 	}
 
 	async function signCloudinaryUpload(actorAdmin, payload) {
-		const siteSettings = await repository.findSiteSettingsByTenant(payload.tenant_id)
+		const siteSettings = await repository.findSiteSettingsByTenant(
+			payload.tenant_id,
+		)
 		const folder =
-			payload.folder || siteSettings?.cloudinary_folder || env.CLOUDINARY_UPLOAD_FOLDER
+			payload.folder ||
+			siteSettings?.cloudinary_folder ||
+			env.CLOUDINARY_UPLOAD_FOLDER
 
 		const signature = signer.signUpload({
 			...payload,
@@ -518,10 +688,16 @@ function createContentService({
 			},
 		})
 
-		await audit(actorAdmin, "upload.cloudinary_signed", "file_upload", uploadRecord, {
-			before: null,
-			after: uploadRecord,
-		})
+		await audit(
+			actorAdmin,
+			"upload.cloudinary_signed",
+			"file_upload",
+			uploadRecord,
+			{
+				before: null,
+				after: uploadRecord,
+			},
+		)
 
 		return {
 			signature,
@@ -538,6 +714,7 @@ function createContentService({
 		createStylist,
 		deleteBlogPost,
 		deleteContactMessage,
+		deleteReview,
 		deleteGalleryItem,
 		deleteService,
 		deleteServiceCategory,
@@ -583,6 +760,7 @@ function createContentService({
 		submitReview,
 		updateBlogPost,
 		updateContactMessageStatus,
+		updateAdminReview,
 		updateGalleryItem,
 		updateService,
 		updateServiceCategory,

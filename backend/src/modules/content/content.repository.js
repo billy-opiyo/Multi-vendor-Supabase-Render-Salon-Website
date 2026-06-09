@@ -40,7 +40,9 @@ function throwRepositoryError(error, statusCode, code, message) {
 }
 
 function applyTenantFilter(query, tenantId) {
-	return tenantId ? query.eq("tenant_id", tenantId) : query.is("tenant_id", null)
+	return tenantId
+		? query.eq("tenant_id", tenantId)
+		: query.is("tenant_id", null)
 }
 
 function applyRange(query, filters = {}) {
@@ -181,7 +183,8 @@ function createContentRepository(supabase) {
 				.order("sort_order", { ascending: true })
 				.order("name", { ascending: true })
 			query = applyTenantFilter(query, filters.tenant_id)
-			if (filters.is_active !== undefined) query = query.eq("is_active", filters.is_active)
+			if (filters.is_active !== undefined)
+				query = query.eq("is_active", filters.is_active)
 			query = applyRange(query, filters)
 
 			const { data, error } = await query
@@ -236,7 +239,12 @@ function createContentRepository(supabase) {
 			query = applyRange(query, filters)
 
 			const { data, error } = await query
-			throwRepositoryError(error, 500, "services_list_failed", "Unable to list services.")
+			throwRepositoryError(
+				error,
+				500,
+				"services_list_failed",
+				"Unable to list services.",
+			)
 			return data || []
 		},
 
@@ -247,7 +255,8 @@ function createContentRepository(supabase) {
 				.order("sort_order", { ascending: true })
 				.order("name", { ascending: true })
 			query = applyTenantFilter(query, filters.tenant_id)
-			if (filters.is_active !== undefined) query = query.eq("is_active", filters.is_active)
+			if (filters.is_active !== undefined)
+				query = query.eq("is_active", filters.is_active)
 			query = applyRange(query, filters)
 
 			const { data, error } = await query
@@ -318,7 +327,8 @@ function createContentRepository(supabase) {
 				.order("sort_order", { ascending: true })
 				.order("name", { ascending: true })
 			query = applyTenantFilter(query, filters.tenant_id)
-			if (filters.is_active !== undefined) query = query.eq("is_active", filters.is_active)
+			if (filters.is_active !== undefined)
+				query = query.eq("is_active", filters.is_active)
 			query = applyRange(query, filters)
 
 			const { data, error } = await query
@@ -373,7 +383,12 @@ function createContentRepository(supabase) {
 			query = applyRange(query, filters)
 
 			const { data, error } = await query
-			throwRepositoryError(error, 500, "stylists_list_failed", "Unable to list stylists.")
+			throwRepositoryError(
+				error,
+				500,
+				"stylists_list_failed",
+				"Unable to list stylists.",
+			)
 			return data || []
 		},
 
@@ -384,7 +399,8 @@ function createContentRepository(supabase) {
 				.order("sort_order", { ascending: true })
 				.order("display_name", { ascending: true })
 			query = applyTenantFilter(query, filters.tenant_id)
-			if (filters.is_active !== undefined) query = query.eq("is_active", filters.is_active)
+			if (filters.is_active !== undefined)
+				query = query.eq("is_active", filters.is_active)
 			query = applyRange(query, filters)
 
 			const { data, error } = await query
@@ -440,7 +456,12 @@ function createContentRepository(supabase) {
 			query = applyRange(query, filters)
 
 			const { data, error } = await query
-			throwRepositoryError(error, 500, "gallery_list_failed", "Unable to list gallery items.")
+			throwRepositoryError(
+				error,
+				500,
+				"gallery_list_failed",
+				"Unable to list gallery items.",
+			)
 			return data || []
 		},
 
@@ -506,7 +527,12 @@ function createContentRepository(supabase) {
 			query = applyRange(query, filters)
 
 			const { data, error } = await query
-			throwRepositoryError(error, 500, "blog_posts_list_failed", "Unable to list blog posts.")
+			throwRepositoryError(
+				error,
+				500,
+				"blog_posts_list_failed",
+				"Unable to list blog posts.",
+			)
 			return data || []
 		},
 
@@ -519,7 +545,12 @@ function createContentRepository(supabase) {
 			query = applyTenantFilter(query, tenantId)
 
 			const { data, error } = await query.maybeSingle()
-			throwRepositoryError(error, 500, "blog_post_lookup_failed", "Unable to load blog post.")
+			throwRepositoryError(
+				error,
+				500,
+				"blog_post_lookup_failed",
+				"Unable to load blog post.",
+			)
 			return data
 		},
 
@@ -584,7 +615,12 @@ function createContentRepository(supabase) {
 			query = applyRange(query, filters)
 
 			const { data, error } = await query
-			throwRepositoryError(error, 500, "reviews_list_failed", "Unable to list reviews.")
+			throwRepositoryError(
+				error,
+				500,
+				"reviews_list_failed",
+				"Unable to list reviews.",
+			)
 			return data || []
 		},
 
@@ -599,7 +635,12 @@ function createContentRepository(supabase) {
 			query = applyRange(query, filters)
 
 			const { data, error } = await query
-			throwRepositoryError(error, 500, "admin_reviews_list_failed", "Unable to list admin reviews.")
+			throwRepositoryError(
+				error,
+				500,
+				"admin_reviews_list_failed",
+				"Unable to list admin reviews.",
+			)
 			return data || []
 		},
 
@@ -613,6 +654,23 @@ function createContentRepository(supabase) {
 			)
 		},
 
+		async findReviewById(id) {
+			const { data, error } = await supabase
+				.from("reviews")
+				.select(REVIEW_SELECT)
+				.eq("id", id)
+				.maybeSingle()
+
+			throwRepositoryError(
+				error,
+				500,
+				"review_lookup_failed",
+				"Unable to load review.",
+			)
+
+			return data
+		},
+
 		async updateReview(id, values) {
 			return updateRow(
 				"reviews",
@@ -621,6 +679,16 @@ function createContentRepository(supabase) {
 				values,
 				"review_update_failed",
 				"Unable to update review.",
+			)
+		},
+
+		async deleteReview(id) {
+			return deleteRow(
+				"reviews",
+				REVIEW_SELECT,
+				id,
+				"review_delete_failed",
+				"Unable to delete review.",
 			)
 		},
 

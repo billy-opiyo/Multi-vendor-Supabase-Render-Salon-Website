@@ -246,11 +246,14 @@
 		},
 
 		async clientReleaseExpiredBookingSlot(payload = {}) {
-			return {
-				ok: true,
-				skipped: true,
-				slotId: payload.slotId || payload.slot_id,
-			}
+			const slotId = encodeSegment(payload.slotId || payload.slot_id)
+			if (!slotId) return null
+			return dataOrPayload(
+				await request(`/api/v1/booking-slots/${slotId}/release-expired`, {
+					method: "POST",
+					body: payload,
+				}),
+			)
 		},
 
 		async clientGetWaitlistQueueInfo(payload = {}) {

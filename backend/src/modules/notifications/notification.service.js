@@ -11,6 +11,7 @@ const {
 	DEFAULT_MAX_ATTEMPTS,
 	DEFAULT_OUTBOX_LIMIT,
 	DEFAULT_RETRY_BASE_SECONDS,
+	DEFAULT_UPCOMING_REMINDER_LEAD_TIME_MINUTES,
 	DEFAULT_UPCOMING_REMINDER_WINDOW_MINUTES,
 	NOTIFICATION_AGGREGATE_TYPES,
 	NOTIFICATION_CHANNELS,
@@ -484,15 +485,21 @@ function createNotificationService({
 
 		async queueUpcomingBookingReminders(options = {}) {
 			const nowIso = options.nowIso || new Date().toISOString()
+			const leadTimeMinutes =
+				options.leadTimeMinutes || DEFAULT_UPCOMING_REMINDER_LEAD_TIME_MINUTES
 			const windowMinutes =
 				options.windowMinutes || DEFAULT_UPCOMING_REMINDER_WINDOW_MINUTES
+			const leadTimeMs = leadTimeMinutes * 60 * 1000
+			const windowMs = windowMinutes * 60 * 1000
+			const nowMs = new Date(nowIso).getTime()
+			const windowStartIso =
+				options.windowStartIso || new Date(nowMs + leadTimeMs - windowMs).toISOString()
 			const windowEndIso =
 				options.windowEndIso ||
-				new Date(
-					new Date(nowIso).getTime() + windowMinutes * 60 * 1000,
-				).toISOString()
+				new Date(nowMs + leadTimeMs + windowMs).toISOString()
 			const candidates = await repository.listUpcomingReminderCandidates({
 				nowIso,
+				windowStartIso,
 				windowEndIso,
 				limit: options.limit || DEFAULT_OUTBOX_LIMIT,
 			})
@@ -515,7 +522,10 @@ function createNotificationService({
 
 			return {
 				candidates: candidates.length,
+				leadTimeMinutes,
 				queued,
+				windowEndIso,
+				windowStartIso,
 			}
 		},
 

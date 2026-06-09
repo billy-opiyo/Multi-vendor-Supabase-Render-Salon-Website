@@ -77,8 +77,13 @@ const envSchema = z
 			.number()
 			.int()
 			.positive()
-			.default(1440),
-		EXPIRED_SLOT_GRACE_MINUTES: z.coerce.number().int().positive().default(60),
+			.default(15),
+		UPCOMING_REMINDER_LEAD_TIME_MINUTES: z.coerce
+			.number()
+			.int()
+			.positive()
+			.default(120),
+		EXPIRED_SLOT_GRACE_MINUTES: z.coerce.number().int().positive().default(120),
 	})
 	.superRefine((value, ctx) => {
 		if (value.NODE_ENV === "test") {

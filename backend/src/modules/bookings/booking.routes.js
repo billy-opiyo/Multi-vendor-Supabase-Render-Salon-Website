@@ -23,6 +23,11 @@ router.get(
 	requireAuth,
 	bookingController.getWaitlistQueue,
 )
+router.post(
+	"/api/v1/booking-slots/:slotId/release-expired",
+	requireAuth,
+	bookingController.releaseExpiredBookingSlot,
+)
 
 router.get(
 	"/api/v1/admin/bookings",

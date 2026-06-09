@@ -47,6 +47,27 @@ const WAITLIST_QUEUE_STATUSES = Object.freeze([
 
 const DEFAULT_STYLIST_KEY = "any"
 const DEFAULT_SLOT_DURATION_MINUTES = 60
+const DEFAULT_EXPIRED_SLOT_GRACE_MINUTES = 120
+const WAITLIST_SLOT_OCCUPIED_REASON = "slot-occupied"
+const WAITLIST_SLOT_OCCUPIED_MESSAGE =
+	"Cannot move this waitlisted client to confirmed because the preferred slot is still occupied by another booking. Cancel or release the existing booking first, then try again."
+
+function cleanWaitlistDetailValue(value = "") {
+	return String(value || "").trim()
+}
+
+function buildWaitlistSlotOccupiedDetails({
+	slotId = "",
+	currentBookingId = "",
+	waitlistBookingId = "",
+} = {}) {
+	return {
+		reason: WAITLIST_SLOT_OCCUPIED_REASON,
+		slotId: cleanWaitlistDetailValue(slotId),
+		currentBookingId: cleanWaitlistDetailValue(currentBookingId),
+		waitlistBookingId: cleanWaitlistDetailValue(waitlistBookingId),
+	}
+}
 
 function isActiveBookingStatus(status) {
 	return ACTIVE_BOOKING_STATUSES.includes(status)
@@ -109,12 +130,16 @@ module.exports = {
 	BOOKING_STATUSES,
 	BOOKING_STATUS_VALUES,
 	CANCELLABLE_BOOKING_STATUSES,
+	DEFAULT_EXPIRED_SLOT_GRACE_MINUTES,
 	DEFAULT_SLOT_DURATION_MINUTES,
 	DEFAULT_STYLIST_KEY,
 	TERMINAL_BOOKING_STATUSES,
+	WAITLIST_SLOT_OCCUPIED_MESSAGE,
+	WAITLIST_SLOT_OCCUPIED_REASON,
 	WAITLIST_QUEUE_STATUSES,
 	WAITLIST_STATUSES,
 	WAITLIST_STATUS_VALUES,
+	buildWaitlistSlotOccupiedDetails,
 	canTransitionBookingStatus,
 	isActiveBookingStatus,
 	isCancellableBookingStatus,

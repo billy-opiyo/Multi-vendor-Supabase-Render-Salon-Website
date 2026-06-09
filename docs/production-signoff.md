@@ -170,8 +170,8 @@ Notes: Live CORS allows the approved Vercel origin. Unexpected origin was reject
 Checklist:
 
 - [ ] `salon-flush-notification-outbox` exists and runs `npm run job:notifications` every 5 minutes.
-- [ ] `salon-upcoming-booking-reminders` exists and runs `npm run job:reminders` hourly.
-- [ ] `salon-release-expired-booking-slots` exists and runs `npm run job:release-expired-slots` every 30 minutes.
+- [ ] `salon-upcoming-booking-reminders` exists and runs `npm run job:reminders` every 15 minutes.
+- [ ] `salon-release-expired-booking-slots` exists and runs `npm run job:release-expired-slots` every 15 minutes.
 - [ ] `salon-waitlist-slot-open-notifications` exists and runs `npm run job:waitlist-slot-open` every 15 minutes.
 - [ ] Each cron job has the required Supabase and provider environment variables.
 - [ ] Initial cron runs complete successfully with `NOTIFICATION_DRY_RUN=true`.

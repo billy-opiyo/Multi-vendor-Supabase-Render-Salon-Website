@@ -11,10 +11,13 @@ const {
 	createNotificationService,
 } = require("../notifications/notification.service")
 const {
+	DEFAULT_EXPIRED_SLOT_GRACE_MINUTES,
 	BOOKING_STATUSES,
 	DEFAULT_SLOT_DURATION_MINUTES,
+	WAITLIST_SLOT_OCCUPIED_MESSAGE,
 	DEFAULT_STYLIST_KEY,
 	WAITLIST_QUEUE_STATUSES,
+	buildWaitlistSlotOccupiedDetails,
 	WAITLIST_STATUSES,
 	canTransitionBookingStatus,
 	isCancellableBookingStatus,
@@ -130,6 +133,41 @@ function buildStartsAt(appointmentDate, appointmentTime) {
 function addMinutes(isoTimestamp, minutesToAdd) {
 	const date = new Date(isoTimestamp)
 	return new Date(date.getTime() + minutesToAdd * 60 * 1000).toISOString()
+}
+
+function toValidDate(value) {
+	const date = new Date(value || 0)
+	return Number.isNaN(date.getTime()) ? null : date
+}
+
+function getSlotStartsAt(slot = {}) {
+	if (slot.starts_at) {
+		return toValidDate(slot.starts_at)
+	}
+
+	if (slot.slot_date && slot.slot_time) {
+		return toValidDate(buildStartsAt(slot.slot_date, slot.slot_time))
+	}
+
+	return null
+}
+
+function isExpiredSlot(slot = {}, { nowIso, graceMinutes } = {}) {
+	const startsAt = getSlotStartsAt(slot)
+	if (!startsAt) return false
+
+	const now = toValidDate(nowIso || new Date().toISOString()) || new Date()
+	const safeGraceMinutes = Math.max(
+		0,
+		Number(graceMinutes || DEFAULT_EXPIRED_SLOT_GRACE_MINUTES),
+	)
+	return startsAt.getTime() + safeGraceMinutes * 60 * 1000 <= now.getTime()
+}
+
+function getAutoReleaseStatusForBooking(booking = {}) {
+	if (booking.status === BOOKING_STATUSES.PENDING) return BOOKING_STATUSES.EXPIRED
+	if (booking.status === BOOKING_STATUSES.CONFIRMED) return BOOKING_STATUSES.NO_SHOW
+	return ""
 }
 
 function resolveStartsAt(payload) {
@@ -500,6 +538,118 @@ function createBookingService({ bookingRepository, notificationService } = {}) {
 		)
 
 		return { releasedSlot, queue }
+	}
+
+	async function releaseExpiredSlotDocumentWorkflow({
+		slot,
+		actorUserId = null,
+		nowIso,
+		graceMinutes = DEFAULT_EXPIRED_SLOT_GRACE_MINUTES,
+		source = "manual",
+	} = {}) {
+		if (!slot?.id) {
+			return { released: false, reason: "not-found" }
+		}
+
+		if (slot.taken !== true) {
+			return { released: false, reason: "already-open", slot }
+		}
+
+		if (!isExpiredSlot(slot, { nowIso, graceMinutes })) {
+			return { released: false, reason: "not-expired", slot }
+		}
+
+		const booking = slot.booking_id
+			? await repository.findBookingById(slot.booking_id)
+			: null
+		const bookingStatus = booking?.status || ""
+		const nextBookingStatus = booking
+			? getAutoReleaseStatusForBooking(booking)
+			: ""
+
+		let releaseReason = nextBookingStatus || "expired_orphaned"
+		if (booking) {
+			if (booking.status === BOOKING_STATUSES.COMPLETED) {
+				releaseReason = "completed"
+			} else if (booking.status === BOOKING_STATUSES.CANCELLED) {
+				releaseReason = "cancelled"
+			} else if (
+				booking.status === BOOKING_STATUSES.EXPIRED ||
+				booking.status === BOOKING_STATUSES.NO_SHOW
+			) {
+				releaseReason = booking.status
+			} else if (!nextBookingStatus) {
+				return {
+					released: false,
+					reason: "booking-status-not-autoreleasable",
+					bookingId: booking.id,
+					bookingStatus: booking.status,
+					slot,
+				}
+			}
+		}
+
+		let updatedBooking = booking
+		if (booking && nextBookingStatus) {
+			const updateValues = {
+				status: nextBookingStatus,
+				metadata: {
+					...(booking.metadata || {}),
+					auto_release_source: source,
+					previous_status_before_auto_release: booking.status,
+				},
+			}
+			const timestampField = timestampFieldForBookingStatus(nextBookingStatus)
+			if (timestampField) {
+				updateValues[timestampField] = nowIso || new Date().toISOString()
+			}
+			updatedBooking = await repository.updateBooking(booking.id, updateValues)
+			await insertStatusEvent(
+				updatedBooking,
+				booking.status,
+				nextBookingStatus,
+				actorUserId,
+				releaseReason,
+				{ source },
+			)
+		}
+
+		const releasedSlot = await repository.releaseSlot(slot.id, {
+			release_reason: releaseReason,
+		})
+		const queue = await recalculateWaitlistQueue(queueFiltersFromSlot(releasedSlot))
+		await queueSlotOpenNotifications(queue, releasedSlot, {
+			source: `render_${source}_expired_slot_release`,
+			metadata: { reason: releaseReason },
+		})
+
+		if (updatedBooking) {
+			await repository.insertActivity(
+				buildActivity({
+					booking: updatedBooking,
+					actorUserId,
+					activityType: "booking_status_changed",
+					title: "Expired booking slot released",
+					description: `Expired booking slot was released with reason ${releaseReason}.`,
+					metadata: {
+						slot_id: releasedSlot.id,
+						release_reason: releaseReason,
+						source,
+					},
+				}),
+			)
+		}
+
+		return {
+			released: true,
+			reason: releaseReason,
+			bookingId: booking?.id || slot.booking_id || "",
+			bookingStatus,
+			nextBookingStatus,
+			slot: releasedSlot,
+			booking: updatedBooking,
+			queue,
+		}
 	}
 
 	async function updateBookingStatusWorkflow({
@@ -905,6 +1055,24 @@ function createBookingService({ bookingRepository, notificationService } = {}) {
 			}
 		},
 
+		async releaseExpiredBookingSlotForClient(authUser, slotId, options = {}) {
+			assertAuthenticatedUser(authUser)
+
+			const slot = await repository.findSlotById(slotId)
+			if (!slot) {
+				throw new ApiError(404, "booking_slot_not_found", "Booking slot was not found.")
+			}
+
+			return releaseExpiredSlotDocumentWorkflow({
+				slot,
+				actorUserId: authUser.id,
+				graceMinutes:
+					options.graceMinutes || DEFAULT_EXPIRED_SLOT_GRACE_MINUTES,
+				nowIso: options.nowIso,
+				source: "client",
+			})
+		},
+
 		async listAdminBookings(filters = {}) {
 			return repository.listAdminBookings(filters)
 		},
@@ -1093,7 +1261,12 @@ function createBookingService({ bookingRepository, notificationService } = {}) {
 				throw new ApiError(
 					409,
 					"waitlist_slot_occupied",
-					"Preferred slot is still occupied and cannot be promoted.",
+					WAITLIST_SLOT_OCCUPIED_MESSAGE,
+					buildWaitlistSlotOccupiedDetails({
+						slotId: slot.id,
+						currentBookingId: slot.booking_id,
+						waitlistBookingId: booking.id,
+					}),
 				)
 			}
 
@@ -1105,7 +1278,12 @@ function createBookingService({ bookingRepository, notificationService } = {}) {
 				throw new ApiError(
 					409,
 					"waitlist_slot_occupied",
-					"Preferred slot is still occupied and cannot be promoted.",
+					WAITLIST_SLOT_OCCUPIED_MESSAGE,
+					buildWaitlistSlotOccupiedDetails({
+						slotId: slot.id,
+						currentBookingId: slot.booking_id,
+						waitlistBookingId: booking.id,
+					}),
 				)
 			}
 
@@ -1208,42 +1386,92 @@ function createBookingService({ bookingRepository, notificationService } = {}) {
 
 		async releaseExpiredBookingSlots(options = {}) {
 			const nowIso = options.nowIso || new Date().toISOString()
-			const graceMinutes = options.graceMinutes || 60
+			const graceMinutes =
+				options.graceMinutes || DEFAULT_EXPIRED_SLOT_GRACE_MINUTES
 			const cutoffIso =
 				options.cutoffIso ||
 				new Date(
 					new Date(nowIso).getTime() - graceMinutes * 60 * 1000,
 				).toISOString()
-			const candidates = await repository.listExpiredActiveBookings({
-				cutoffIso,
-				limit: options.limit || 50,
-			})
+			const slotCandidates =
+				typeof repository.listExpiredTakenSlots === "function"
+					? await repository.listExpiredTakenSlots({
+							cutoffIso,
+							limit: options.limit || 500,
+						})
+					: []
+			const bookingCandidates =
+				typeof repository.listExpiredActiveBookings === "function"
+					? await repository.listExpiredActiveBookings({
+						cutoffIso,
+						limit: options.bookingLimit || options.limit || 50,
+					})
+					: []
 			const released = []
+			const processedBookingIds = new Set()
 
-			for (const booking of candidates) {
-				const toStatus =
-					booking.status === BOOKING_STATUSES.CONFIRMED
-						? BOOKING_STATUSES.NO_SHOW
-						: BOOKING_STATUSES.EXPIRED
-				const result = await updateBookingStatusWorkflow({
-					booking,
-					toStatus,
-					actorUserId: options.actorUserId || null,
-					reason: options.reason || "scheduled_slot_expiration",
-					metadata: {
-						...(options.metadata || {}),
-						source: "render_expired_slot_job",
-						cutoff_at: cutoffIso,
-					},
-					releaseSlot: Boolean(booking.slot_id),
-				})
+			for (const slot of slotCandidates) {
+				if (slot.booking_id) {
+					processedBookingIds.add(String(slot.booking_id))
+				}
+
+				released.push(
+					await releaseExpiredSlotDocumentWorkflow({
+						slot,
+						actorUserId: options.actorUserId || null,
+						graceMinutes,
+						nowIso,
+						source: "scheduled",
+					}),
+				)
+			}
+
+			for (const booking of bookingCandidates) {
+				if (processedBookingIds.has(String(booking.id))) {
+					continue
+				}
+
+				const nextBookingStatus = getAutoReleaseStatusForBooking(booking)
+				if (!nextBookingStatus) {
+					released.push({
+						released: false,
+						reason: "booking-status-not-autoreleasable",
+						bookingId: booking.id,
+						bookingStatus: booking.status,
+					})
+					continue
+				}
+
+				const slot = booking.slot_id
+					? await repository.findSlotById(booking.slot_id)
+					: null
+				const result = slot
+					? await releaseExpiredSlotDocumentWorkflow({
+							slot,
+							actorUserId: options.actorUserId || null,
+							graceMinutes,
+							nowIso,
+							source: "scheduled",
+						})
+					: await updateBookingStatusWorkflow({
+							booking,
+							toStatus: nextBookingStatus,
+							actorUserId: options.actorUserId || null,
+							reason: options.reason || "scheduled_slot_expiration",
+							metadata: {
+								...(options.metadata || {}),
+								source: "render_expired_slot_job",
+								cutoff_at: cutoffIso,
+							},
+							releaseSlot: false,
+						})
 
 				released.push(result)
 			}
 
 			return {
 				cutoffIso,
-				candidates: candidates.length,
+				candidates: slotCandidates.length + bookingCandidates.length,
 				released,
 			}
 		},

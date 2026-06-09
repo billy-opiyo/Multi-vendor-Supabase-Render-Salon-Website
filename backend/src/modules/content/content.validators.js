@@ -282,6 +282,21 @@ const reviewModerationSchema = z
 	})
 	.strict()
 
+const reviewAdminUpdateSchema = z
+	.object({
+		status: z.enum(REVIEW_STATUS_VALUES).optional(),
+		moderation_notes: nullableTrimmedString(1000),
+		review_text: optionalTrimmedString(4000),
+		rating: z.coerce.number().int().min(1).max(5).optional(),
+		service: nullableTrimmedString(180),
+		service_id: nullableUuid,
+		metadata: optionalMetadataSchema,
+	})
+	.strict()
+	.refine((value) => Object.keys(value).length > 0, {
+		message: "At least one review field must be provided.",
+	})
+
 const contactMessageCreateSchema = z
 	.object({
 		tenant_id: nullableUuid,
@@ -429,6 +444,7 @@ module.exports = {
 	publicBlogParamsSchema,
 	publicListQuerySchema,
 	publicReviewListQuerySchema,
+	reviewAdminUpdateSchema,
 	reviewCreateSchema,
 	reviewModerationSchema,
 	reviewParamsSchema,

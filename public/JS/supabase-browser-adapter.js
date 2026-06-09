@@ -1027,6 +1027,34 @@
 		}
 	}
 
+	function mapAdminReviewUpdatePayload(data = {}) {
+		const metadata = { ...(data.metadata || {}) }
+		if (data.adminReply !== undefined)
+			metadata.adminReply = data.adminReply || ""
+		if (data.photoUrl !== undefined) metadata.photoUrl = data.photoUrl || ""
+		if (data.featured !== undefined) metadata.featured = data.featured === true
+		if (data.verifiedBooking !== undefined) {
+			metadata.verifiedBooking = data.verifiedBooking === true
+		}
+
+		const body = { metadata }
+		if (data.status) body.status = data.status
+		if (data.moderationNotes !== undefined) {
+			body.moderation_notes = data.moderationNotes || null
+		}
+		if (data.moderation_notes !== undefined) {
+			body.moderation_notes = data.moderation_notes || null
+		}
+		if (data.text !== undefined) body.review_text = data.text
+		if (data.reviewText !== undefined) body.review_text = data.reviewText
+		if (data.review_text !== undefined) body.review_text = data.review_text
+		if (data.rating !== undefined) body.rating = data.rating
+		if (data.service !== undefined) body.service = data.service || null
+		if (data.serviceId !== undefined) body.service_id = data.serviceId || null
+		if (data.service_id !== undefined) body.service_id = data.service_id || null
+		return body
+	}
+
 	function mapGalleryPayload(data = {}) {
 		return {
 			title: data.styleName || data.title || "Gallery item",
@@ -1109,14 +1137,15 @@
 						body: mapReviewPayload(data),
 						auth: Boolean(getAccessToken()),
 					})
-				} else if (isUuid(id) && data?.status && isAdminPage()) {
-					await window.RenderApi.request(
-						`/api/v1/admin/reviews/${id}/moderate`,
-						{
-							method: "POST",
-							body: { status: data.status, metadata: data.metadata || {} },
-						},
-					)
+				} else if (operation === "delete" && isUuid(id) && isAdminPage()) {
+					await window.RenderApi.request(`/api/v1/admin/reviews/${id}`, {
+						method: "DELETE",
+					})
+				} else if (isUuid(id) && isAdminPage()) {
+					await window.RenderApi.request(`/api/v1/admin/reviews/${id}`, {
+						method: "PATCH",
+						body: mapAdminReviewUpdatePayload(data),
+					})
 				}
 				return
 			}

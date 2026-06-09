@@ -94,6 +94,10 @@ const bookingParamsSchema = z.object({
 	bookingId: z.string().uuid(),
 })
 
+const bookingSlotParamsSchema = z.object({
+	slotId: z.string().uuid(),
+})
+
 const waitlistParamsSchema = z.object({
 	waitlistId: z.string().uuid(),
 })
@@ -153,6 +157,7 @@ module.exports = {
 	bookingCreateSchema,
 	bookingParamsSchema,
 	bookingRescheduleSchema,
+	bookingSlotParamsSchema,
 	listQuerySchema,
 	normalizeBookingPayload,
 	waitlistListQuerySchema,

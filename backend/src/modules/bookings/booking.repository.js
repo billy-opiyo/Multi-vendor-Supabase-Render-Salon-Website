@@ -256,6 +256,25 @@ function createBookingRepository(supabase) {
 			return data || []
 		},
 
+		async listExpiredTakenSlots({ cutoffIso, limit = 500 } = {}) {
+			const { data, error } = await supabase
+				.from("booking_slots")
+				.select(BOOKING_SLOT_SELECT)
+				.eq("taken", true)
+				.lte("starts_at", cutoffIso)
+				.order("starts_at", { ascending: true })
+				.limit(limit)
+
+			throwRepositoryError(
+				error,
+				500,
+				"expired_booking_slot_list_failed",
+				"Unable to list expired taken booking slots.",
+			)
+
+			return data || []
+		},
+
 		async createBooking(values) {
 			const { data, error } = await supabase
 				.from("bookings")

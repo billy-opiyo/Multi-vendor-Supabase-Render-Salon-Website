@@ -1,21 +1,56 @@
 const express = require("express")
 
 const { requireAdmin } = require("../../middleware/requireAdmin")
-const { requireAuth } = require("../../middleware/requireAuth")
-const { CONTENT_ADMIN_PERMISSION } = require("./content.constants")
+const { optionalAuth, requireAuth } = require("../../middleware/requireAuth")
+const { rateLimit } = require("../../middleware/rateLimit")
+const {
+	CONTACT_RATE_LIMIT_COOLDOWN_MS,
+	CONTENT_ADMIN_PERMISSION,
+	REVIEW_RATE_LIMIT_COOLDOWN_MS,
+} = require("./content.constants")
 const contentController = require("./content.controller")
 
 const router = express.Router()
-const requireContentAdmin = [requireAuth, requireAdmin(CONTENT_ADMIN_PERMISSION)]
+const requireContentAdmin = [
+	requireAuth,
+	requireAdmin(CONTENT_ADMIN_PERMISSION),
+]
+const reviewSubmissionCooldown = rateLimit({
+	action: "review",
+	limit: 1,
+	windowMs: REVIEW_RATE_LIMIT_COOLDOWN_MS,
+	lockMs: REVIEW_RATE_LIMIT_COOLDOWN_MS,
+})
+const contactMessageSubmissionCooldown = rateLimit({
+	action: "contact",
+	limit: 1,
+	windowMs: CONTACT_RATE_LIMIT_COOLDOWN_MS,
+	lockMs: CONTACT_RATE_LIMIT_COOLDOWN_MS,
+})
 
-router.get("/api/v1/site-settings/public", contentController.getPublicSiteSettings)
+router.get(
+	"/api/v1/site-settings/public",
+	contentController.getPublicSiteSettings,
+)
 router.get("/api/v1/services", contentController.getPublicServices)
 router.get("/api/v1/gallery", contentController.listPublicGalleryItems)
 router.get("/api/v1/blog-posts", contentController.listPublicBlogPosts)
 router.get("/api/v1/blog-posts/:slug", contentController.getPublicBlogPost)
 router.get("/api/v1/reviews", contentController.listPublicReviews)
-router.post("/api/v1/reviews", contentController.submitReview)
-router.post("/api/v1/contact-messages", contentController.submitContactMessage)
+router.post(
+	"/api/v1/reviews",
+	contentController.validateReviewSubmission,
+	optionalAuth,
+	reviewSubmissionCooldown,
+	contentController.submitReview,
+)
+router.post(
+	"/api/v1/contact-messages",
+	contentController.validateContactMessageSubmission,
+	optionalAuth,
+	contactMessageSubmissionCooldown,
+	contentController.submitContactMessage,
+)
 
 router.get(
 	"/api/v1/admin/site-settings",
@@ -163,6 +198,16 @@ router.post(
 	"/api/v1/admin/reviews/:reviewId/moderate",
 	...requireContentAdmin,
 	contentController.moderateAdminReview,
+)
+router.patch(
+	"/api/v1/admin/reviews/:reviewId",
+	...requireContentAdmin,
+	contentController.updateAdminReview,
+)
+router.delete(
+	"/api/v1/admin/reviews/:reviewId",
+	...requireContentAdmin,
+	contentController.deleteAdminReview,
 )
 
 router.get(

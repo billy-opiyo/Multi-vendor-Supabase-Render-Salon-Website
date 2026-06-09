@@ -8,6 +8,7 @@ const {
 	bookingCreateSchema,
 	bookingParamsSchema,
 	bookingRescheduleSchema,
+	bookingSlotParamsSchema,
 	listQuerySchema,
 	normalizeBookingPayload,
 	waitlistListQuerySchema,
@@ -99,6 +100,24 @@ const getWaitlistQueue = asyncHandler(async (req, res) => {
 	res.status(200).json({
 		ok: true,
 		data: result,
+	})
+})
+
+const releaseExpiredBookingSlot = asyncHandler(async (req, res) => {
+	const params = parseRequest(bookingSlotParamsSchema, req.params, {
+		message: "Invalid booking slot identifier.",
+	})
+	const result = await createBookingService().releaseExpiredBookingSlotForClient(
+		req.auth.user,
+		params.slotId,
+	)
+
+	res.status(200).json({
+		ok: true,
+		data: {
+			slotId: params.slotId,
+			...result,
+		},
 	})
 })
 
@@ -198,6 +217,7 @@ module.exports = {
 	listAdminWaitlist,
 	listOwnBookings,
 	moveAdminWaitlistToConfirmed,
+	releaseExpiredBookingSlot,
 	releaseAdminBookingSlot,
 	rescheduleOwnBooking,
 	updateAdminBookingStatus,

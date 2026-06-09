@@ -20,6 +20,7 @@ const {
 	publicBlogParamsSchema,
 	publicListQuerySchema,
 	publicReviewListQuerySchema,
+	reviewAdminUpdateSchema,
 	reviewCreateSchema,
 	reviewModerationSchema,
 	reviewParamsSchema,
@@ -43,6 +44,15 @@ function parseNormalizedBody(schema, body, message) {
 	return parseRequest(schema, normalizeContentPayload(body), { message })
 }
 
+function createValidatedBodyMiddleware(schema, message) {
+	return asyncHandler(async (req, _res, next) => {
+		const payload = parseNormalizedBody(schema, req.body, message)
+		req.body = payload
+		req.validatedContentPayload = payload
+		next()
+	})
+}
+
 function createListController(schema, serviceMethodName, dataKey) {
 	return asyncHandler(async (req, res) => {
 		const filters = parseRequest(schema, normalizeContentPayload(req.query), {
@@ -54,18 +64,28 @@ function createListController(schema, serviceMethodName, dataKey) {
 }
 
 const getPublicSiteSettings = asyncHandler(async (req, res) => {
-	const filters = parseRequest(publicListQuerySchema, normalizeContentPayload(req.query), {
-		message: "Invalid site settings filters.",
-	})
-	const siteSettings = await createContentService().getPublicSiteSettings(filters)
+	const filters = parseRequest(
+		publicListQuerySchema,
+		normalizeContentPayload(req.query),
+		{
+			message: "Invalid site settings filters.",
+		},
+	)
+	const siteSettings =
+		await createContentService().getPublicSiteSettings(filters)
 	ok(res, { siteSettings })
 })
 
 const getPublicServices = asyncHandler(async (req, res) => {
-	const filters = parseRequest(publicListQuerySchema, normalizeContentPayload(req.query), {
-		message: "Invalid service filters.",
-	})
-	const catalog = await createContentService().listPublicServicesCatalog(filters)
+	const filters = parseRequest(
+		publicListQuerySchema,
+		normalizeContentPayload(req.query),
+		{
+			message: "Invalid service filters.",
+		},
+	)
+	const catalog =
+		await createContentService().listPublicServicesCatalog(filters)
 	ok(res, catalog)
 })
 
@@ -85,9 +105,13 @@ const getPublicBlogPost = asyncHandler(async (req, res) => {
 	const params = parseRequest(publicBlogParamsSchema, req.params, {
 		message: "Invalid blog post slug.",
 	})
-	const filters = parseRequest(publicBlogListQuerySchema, normalizeContentPayload(req.query), {
-		message: "Invalid blog post filters.",
-	})
+	const filters = parseRequest(
+		publicBlogListQuerySchema,
+		normalizeContentPayload(req.query),
+		{
+			message: "Invalid blog post filters.",
+		},
+	)
 	const blogPost = await createContentService().findPublicBlogPostBySlug(
 		params.slug,
 		filters,
@@ -101,22 +125,35 @@ const listPublicReviews = createListController(
 	"reviews",
 )
 
+const validateReviewSubmission = createValidatedBodyMiddleware(
+	reviewCreateSchema,
+	"Invalid review payload.",
+)
+
 const submitReview = asyncHandler(async (req, res) => {
-	const payload = parseNormalizedBody(
-		reviewCreateSchema,
-		req.body,
-		"Invalid review payload.",
+	const payload =
+		req.validatedContentPayload ||
+		parseNormalizedBody(reviewCreateSchema, req.body, "Invalid review payload.")
+	const review = await createContentService().submitReview(
+		req.auth?.user,
+		payload,
 	)
-	const review = await createContentService().submitReview(req.auth?.user, payload)
 	ok(res, { review }, 201)
 })
 
+const validateContactMessageSubmission = createValidatedBodyMiddleware(
+	contactMessageCreateSchema,
+	"Invalid contact message payload.",
+)
+
 const submitContactMessage = asyncHandler(async (req, res) => {
-	const payload = parseNormalizedBody(
-		contactMessageCreateSchema,
-		req.body,
-		"Invalid contact message payload.",
-	)
+	const payload =
+		req.validatedContentPayload ||
+		parseNormalizedBody(
+			contactMessageCreateSchema,
+			req.body,
+			"Invalid contact message payload.",
+		)
 	const result = await createContentService().submitContactMessage(
 		req.auth?.user,
 		payload,
@@ -125,10 +162,15 @@ const submitContactMessage = asyncHandler(async (req, res) => {
 })
 
 const getAdminSiteSettings = asyncHandler(async (req, res) => {
-	const filters = parseRequest(publicListQuerySchema, normalizeContentPayload(req.query), {
-		message: "Invalid site settings filters.",
-	})
-	const siteSettings = await createContentService().getAdminSiteSettings(filters)
+	const filters = parseRequest(
+		publicListQuerySchema,
+		normalizeContentPayload(req.query),
+		{
+			message: "Invalid site settings filters.",
+		},
+	)
+	const siteSettings =
+		await createContentService().getAdminSiteSettings(filters)
 	ok(res, { siteSettings })
 })
 
@@ -229,7 +271,10 @@ const deleteAdminService = asyncHandler(async (req, res) => {
 	const params = parseRequest(uuidParamsSchema, req.params, {
 		message: "Invalid service identifier.",
 	})
-	const service = await createContentService().deleteService(req.admin, params.id)
+	const service = await createContentService().deleteService(
+		req.admin,
+		params.id,
+	)
 	ok(res, { service })
 })
 
@@ -317,7 +362,10 @@ const deleteAdminStylist = asyncHandler(async (req, res) => {
 	const params = parseRequest(uuidParamsSchema, req.params, {
 		message: "Invalid stylist identifier.",
 	})
-	const stylist = await createContentService().deleteStylist(req.admin, params.id)
+	const stylist = await createContentService().deleteStylist(
+		req.admin,
+		params.id,
+	)
 	ok(res, { stylist })
 })
 
@@ -380,7 +428,10 @@ const createAdminBlogPost = asyncHandler(async (req, res) => {
 		req.body,
 		"Invalid blog post payload.",
 	)
-	const blogPost = await createContentService().createBlogPost(req.admin, payload)
+	const blogPost = await createContentService().createBlogPost(
+		req.admin,
+		payload,
+	)
 	ok(res, { blogPost }, 201)
 })
 
@@ -435,6 +486,34 @@ const moderateAdminReview = asyncHandler(async (req, res) => {
 	ok(res, { review })
 })
 
+const updateAdminReview = asyncHandler(async (req, res) => {
+	const params = parseRequest(reviewParamsSchema, req.params, {
+		message: "Invalid review identifier.",
+	})
+	const payload = parseNormalizedBody(
+		reviewAdminUpdateSchema,
+		req.body,
+		"Invalid review update payload.",
+	)
+	const review = await createContentService().updateAdminReview(
+		req.admin,
+		params.reviewId,
+		payload,
+	)
+	ok(res, { review })
+})
+
+const deleteAdminReview = asyncHandler(async (req, res) => {
+	const params = parseRequest(reviewParamsSchema, req.params, {
+		message: "Invalid review identifier.",
+	})
+	const review = await createContentService().deleteReview(
+		req.admin,
+		params.reviewId,
+	)
+	ok(res, { review })
+})
+
 const listAdminContactMessages = createListController(
 	adminContactMessageListQuerySchema,
 	"listAdminContactMessages",
@@ -450,11 +529,12 @@ const updateAdminContactMessageStatus = asyncHandler(async (req, res) => {
 		req.body,
 		"Invalid contact message status payload.",
 	)
-	const contactMessage = await createContentService().updateContactMessageStatus(
-		req.admin,
-		params.messageId,
-		payload,
-	)
+	const contactMessage =
+		await createContentService().updateContactMessageStatus(
+			req.admin,
+			params.messageId,
+			payload,
+		)
 	ok(res, { contactMessage })
 })
 
@@ -492,6 +572,7 @@ module.exports = {
 	deleteAdminBlogPost,
 	deleteAdminContactMessage,
 	deleteAdminGalleryItem,
+	deleteAdminReview,
 	deleteAdminService,
 	deleteAdminServiceCategory,
 	deleteAdminServiceVariant,
@@ -515,6 +596,9 @@ module.exports = {
 	signCloudinaryUpload,
 	submitContactMessage,
 	submitReview,
+	updateAdminReview,
+	validateContactMessageSubmission,
+	validateReviewSubmission,
 	updateAdminBlogPost,
 	updateAdminContactMessageStatus,
 	updateAdminGalleryItem,

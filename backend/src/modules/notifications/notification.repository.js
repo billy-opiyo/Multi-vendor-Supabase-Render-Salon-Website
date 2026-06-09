@@ -267,12 +267,17 @@ function createNotificationRepository(supabase) {
 			return data
 		},
 
-		async listUpcomingReminderCandidates({ nowIso, windowEndIso, limit }) {
+		async listUpcomingReminderCandidates({
+			nowIso,
+			windowStartIso,
+			windowEndIso,
+			limit,
+		}) {
 			const { data, error } = await supabase
 				.from("bookings")
 				.select(BOOKING_SELECT)
 				.eq("status", "confirmed")
-				.gte("starts_at", nowIso)
+				.gte("starts_at", windowStartIso || nowIso)
 				.lte("starts_at", windowEndIso)
 				.order("starts_at", { ascending: true })
 				.limit(limit)
