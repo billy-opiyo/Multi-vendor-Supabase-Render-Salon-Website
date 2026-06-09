@@ -32,6 +32,7 @@ Production URLs/evidence supplied for this run:
 - Render backend URL: `https://salon-shop-render-api.onrender.com`
 - Vercel frontend URL: `https://royal-braids-salon.vercel.app`
 - Base repository commit before sign-off changes: `31fd6f016fc9ec3cf991c3e1107e0cfd5ea0b8b7`
+- Latest deployed validation commit: `9abd031 feat(admin): add login telemetry and security notices`
 
 Validated during this run:
 
@@ -49,13 +50,27 @@ Validated during this run:
 - `public/client-config.js` was updated locally with the production Supabase public URL, Supabase anon key, and Render API URL.
 - Live Vercel `client-config.js` did **not** yet contain the newly configured Supabase/Render values at the time of this run; Vercel redeploy is required.
 
+Follow-up validation after commit/deploy on 2026-06-09:
+
+- Git latest commit: `9abd031 feat(admin): add login telemetry and security notices`.
+- Live Vercel asset parity matched local SHA-256 hashes:
+  - `public/client-config.js`: `C46B7BF035BF40170625D3368070DD03EEB5B0EEB9E74E567CDF3D82819816CB`
+  - `public/JS/admin.js`: `6215C6D47D6EA5A58C288559655B613876353DA4FD75866619D5C45296355C49`
+  - `public/JS/render-api-adapter.js`: `8738E13E672267035DAA530E28F91EEAC73E6888DDAE1FA8C8774487EE8607BB`
+- Live `client-config.js` contains the expected production public identifiers for Supabase project ref `jcxqvbhlexlwbpdtqxgv`, Render backend `salon-shop-render-api`, and a public Supabase publishable/anon key marker `sb_publishable`.
+- Render `/health` returned HTTP 200 with `ok: true`, `environment: "production"`, `supabaseConfigured: true`, and timestamp `2026-06-09T07:16:38.999Z`.
+- Live Render CORS allowed `https://royal-braids-salon.vercel.app`.
+- Live Render CORS rejected unexpected origin `https://example.invalid` with HTTP 403 and typed error `cors_origin_not_allowed`.
+- Live Vercel `/`, `/admin.html`, `/client-config.js`, `/JS/admin.js`, and `/JS/render-api-adapter.js` returned HTTP 200.
+- Live public/admin HTML static checks found no active Firebase SDK script references.
+
 Launch decisions recorded:
 
 - Notification launch mode: keep dry-run for both email and WhatsApp until provider/template checks are intentionally approved.
 - Production Firebase data migration: **Path B** - no Firebase production data/log migration; launch as a new Supabase dataset.
 - Firebase cleanup mode: defer removal; existing Firebase files remain reference-only and must not be active runtime/deployment dependencies.
 
-Current recommendation: **NO-GO for final launch** until the pending redeploy/manual evidence items in the final table are complete.
+Current recommendation: **NO-GO for final launch** until the remaining provider-console/manual evidence items and final production smoke tests in the final table are complete. The earlier frontend redeploy and Render CORS hardening gates are now validated live.
 
 ## Entry criteria
 
@@ -114,7 +129,7 @@ Supabase project ref: https://jcxqvbhlexlwbpdtqxgv.supabase.co
 Migration method used: Pending provider-console confirmation.
 Migration date/time: Pending provider-console confirmation.
 Super admin user/email: Pending admin bootstrap verification.
-Notes: Supabase URL and anon key are configured in local public/client-config.js. Production migrations, RLS/Auth redirects, and initial super_admin row still require manual Supabase dashboard verification before GO.
+Notes: Supabase URL and anon key are configured and verified in live Vercel public/client-config.js. Production migrations, RLS/Auth redirects, and initial super_admin row still require manual Supabase dashboard verification before GO unless separate provider-console evidence is supplied.
 ```
 
 ## 3. Render backend readiness
@@ -159,10 +174,10 @@ Evidence:
 
 ```text
 Render web service URL: https://salon-shop-render-api.onrender.com
-/health result: HTTP 200; { ok: true, service: "salon-render-backend", environment: "production", supabaseConfigured: true }
-Deployment commit: Pending redeploy of local sign-off changes.
+/health result: HTTP 200; { ok: true, service: "salon-render-backend", environment: "production", supabaseConfigured: true, timestamp: "2026-06-09T07:16:38.999Z" }
+Deployment commit: 9abd031 feat(admin): add login telemetry and security notices
 Approved origins: https://royal-braids-salon.vercel.app
-Notes: Live CORS allows the approved Vercel origin. Unexpected origin was rejected with no access-control-allow-origin header but returned HTTP 500; local backend now returns typed HTTP 403 cors_origin_not_allowed and requires Render redeploy.
+Notes: Live CORS allows the approved Vercel origin. Unexpected origin https://example.invalid is rejected with no access-control-allow-origin header, HTTP 403, and typed error cors_origin_not_allowed.
 ```
 
 ## 4. Render cron/job readiness
@@ -186,7 +201,7 @@ Reminder cron log: Pending Render cron log review.
 Expired slot release cron log: Pending Render cron log review.
 Waitlist slot-open cron log: Pending Render cron log review.
 Dry-run or real-send mode: Dry-run for both email and WhatsApp at launch unless intentionally changed later.
-Notes: Render cron definitions exist in render.yaml. Actual production cron runs/logs still need provider-console evidence.
+Notes: Render cron definitions exist in render.yaml. Actual production cron runs/logs still need provider-console evidence from Render for all four cron services.
 ```
 
 ## 5. Vercel/frontend readiness
@@ -211,9 +226,9 @@ Evidence:
 ```text
 Vercel deployment URL: https://royal-braids-salon.vercel.app
 Custom domain: None provided.
-Render API base URL in frontend: https://salon-shop-render-api.onrender.com (configured locally; pending Vercel redeploy confirmation)
-Supabase URL in frontend: https://jcxqvbhlexlwbpdtqxgv.supabase.co (configured locally; pending Vercel redeploy confirmation)
-Notes: Vercel URL returns HTTP 200 over HTTPS. Live /client-config.js did not yet contain the updated Supabase/Render values during this run, so frontend config remains pending until redeployed and rechecked.
+Render API base URL in frontend: https://salon-shop-render-api.onrender.com (verified live)
+Supabase URL in frontend: https://jcxqvbhlexlwbpdtqxgv.supabase.co (verified live)
+Notes: Vercel URL returns HTTP 200 over HTTPS. Live asset parity matched local SHA-256 for client-config.js, JS/admin.js, and JS/render-api-adapter.js after commit/deploy. Live / and /admin.html returned HTTP 200, and static HTML checks found no active Firebase SDK script references.
 ```
 
 ## 6. Production smoke tests
@@ -255,11 +270,11 @@ Run these against the deployed production candidate.
 Evidence:
 
 ```text
-Smoke test date/time: 2026-06-08 local validation run; production manual smoke pending after redeploy.
+Smoke test date/time: 2026-06-08 local validation run; 2026-06-09 non-secret live HTTP/config/CORS checks passed after frontend/backend redeploy.
 Tester: Personal Web Project - Billy Opiyo / Cline-assisted validation.
-Browsers/devices used: Playwright Chromium local E2E; production manual browser/device smoke pending.
-Issues found: E2E theme-preview flow was flaky when navigating twice in-test; live Vercel config not redeployed; live CORS unexpected-origin rejection returned generic 500.
-Issues resolved/deferred: Theme-preview E2E was made deterministic and passed. CORS typed 403 fix added locally and covered by tests; requires Render redeploy. Vercel config requires redeploy. Full production smoke remains pending.
+Browsers/devices used: Playwright Chromium local E2E; CLI HTTP checks against production; production manual browser/device smoke pending.
+Issues found: E2E theme-preview flow was flaky when navigating twice in-test; earlier live Vercel config was not redeployed; earlier live CORS unexpected-origin rejection returned generic 500.
+Issues resolved/deferred: Theme-preview E2E was made deterministic and passed. Vercel frontend assets now match local deployed assets. Render CORS hardening is live and returns typed HTTP 403 for unexpected origins. Full production manual smoke remains pending.
 ```
 
 ## 7. Notification go/no-go
@@ -358,24 +373,24 @@ Launch should be approved only when all critical checks are complete or explicit
 | Area                              | Status                                 | Owner                              | Evidence/notes                                                                                                                                                                                                                            |
 | --------------------------------- | -------------------------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Local/CI tests                    | Passed locally                         | Personal Web Project - Billy Opiyo | `npm ci`, `npm ci --prefix backend`, `npm run test:phase9` passed. Latest Phase 9 run: root unit 11/11, backend 69/69. `npm run test:e2e` passed 22/22.                                                                                   |
-| Supabase migrations/RLS/Auth      | Pending manual confirmation            | Personal Web Project - Billy Opiyo | Project URL recorded. Migration/RLS/Auth redirect/admin bootstrap evidence not verified in this run.                                                                                                                                      |
-| Render web service                | Partially passed; redeploy pending     | Personal Web Project - Billy Opiyo | Live `/health` passed with `supabaseConfigured: true`; approved Vercel CORS origin passed. Local CORS 403 hardening needs Render redeploy.                                                                                                |
+| Supabase migrations/RLS/Auth      | Pending manual confirmation            | Personal Web Project - Billy Opiyo | Project URL recorded. Migration/RLS/Auth redirect/admin bootstrap evidence still needs Supabase provider-console verification before GO.                                                                                                  |
+| Render web service                | Passed live HTTP/CORS checks           | Personal Web Project - Billy Opiyo | Live `/health` passed with `supabaseConfigured: true`; approved Vercel CORS origin passed; unexpected origin now returns typed HTTP 403 `cors_origin_not_allowed`.                                                                         |
 | Render cron jobs                  | Pending manual confirmation            | Personal Web Project - Billy Opiyo | Cron definitions exist in `render.yaml`; provider-console run logs not reviewed in this run.                                                                                                                                              |
-| Vercel frontend config            | Pending redeploy                       | Personal Web Project - Billy Opiyo | Vercel URL returns HTTP 200. Local `public/client-config.js` is configured, but live Vercel `client-config.js` did not yet show updated Supabase/Render values.                                                                           |
-| Production smoke tests            | Pending                                | Personal Web Project - Billy Opiyo | Local Playwright E2E passed; live public/admin/manual production smoke should run after Vercel/Render redeploys.                                                                                                                          |
+| Vercel frontend config            | Passed live asset/config parity        | Personal Web Project - Billy Opiyo | Vercel URL returns HTTP 200. Live `client-config.js`, `JS/admin.js`, and `JS/render-api-adapter.js` match local SHA-256 hashes and contain the expected public Supabase/Render values.                                                     |
+| Production smoke tests            | Pending manual browser/data-flow smoke | Personal Web Project - Billy Opiyo | Local Playwright E2E passed; non-secret live HTTP/config/CORS checks passed after redeploy; full manual production public/admin workflow smoke still needs to be run and recorded.                                                         |
 | Notification mode                 | Approved dry-run                       | Personal Web Project - Billy Opiyo | Launch mode is dry-run for both email and WhatsApp. Real sends are not approved in this sign-off.                                                                                                                                         |
 | Data migration decision           | Approved Path B                        | Personal Web Project - Billy Opiyo | No Firebase production data/log migration; launch as new Supabase dataset.                                                                                                                                                                |
 | Firebase archive/removal decision | Deferred reference-only                | Personal Web Project - Billy Opiyo | Firebase files remain reference-only; no active browser Firebase SDK script loading found in public HTML and root workflow no longer uses Firebase deploy/test commands.                                                                  |
-| Final launch approval             | NO-GO pending redeploy/manual evidence | Personal Web Project - Billy Opiyo | Do not final-launch until Vercel config is redeployed/verified, Render CORS hardening is redeployed/verified, Supabase migrations/RLS/Auth/admin bootstrap are confirmed, Render cron logs are reviewed, and production smoke tests pass. |
+| Final launch approval             | NO-GO pending manual evidence/smoke    | Personal Web Project - Billy Opiyo | Do not final-launch until Supabase migrations/RLS/Auth/admin bootstrap are confirmed, Render cron logs are reviewed, and full production manual smoke tests pass. Notifications remain intentionally dry-run.                             |
 
 Final decision:
 
 ```text
 GO / NO-GO: NO-GO for final launch at this checkpoint.
 Approved by: Personal Web Project - Billy Opiyo
-Date/time: 2026-06-08
-Production commit/tag: Base commit 31fd6f016fc9ec3cf991c3e1107e0cfd5ea0b8b7 plus uncommitted local sign-off changes pending commit/deploy.
-Known deferred items: Vercel redeploy and config verification; Render redeploy for CORS 403 hardening; Supabase migration/RLS/Auth/admin bootstrap confirmation; Render cron logs; live production smoke tests; keep notifications dry-run; Firebase cleanup deferred reference-only.
+Date/time: 2026-06-09 follow-up validation
+Production commit/tag: 9abd031 feat(admin): add login telemetry and security notices
+Known deferred items: Supabase migration/RLS/Auth/admin bootstrap confirmation; Render cron logs; full live production manual smoke tests; keep notifications dry-run; Firebase cleanup deferred reference-only.
 Rollback owner/path: Personal Web Project - Billy Opiyo; rollback by reverting to last known good Git commit/deployment in Render and Vercel if redeploy introduces regressions.
 ```
 
