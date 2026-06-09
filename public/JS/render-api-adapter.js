@@ -114,7 +114,10 @@
 		const payload = await readJsonResponse(response)
 		if (!response.ok) {
 			const error = new Error(
-				toErrorMessage(payload, `Render API request failed (${response.status})`),
+				toErrorMessage(
+					payload,
+					`Render API request failed (${response.status})`,
+				),
 			)
 			error.status = response.status
 			error.payload = payload
@@ -140,6 +143,52 @@
 			...source,
 			tags: normalizeTags(source.tags),
 		}
+	}
+
+	function getAdminUserRouteId(payload = {}) {
+		return encodeSegment(
+			payload.adminUserId ||
+				payload.admin_user_id ||
+				payload.id ||
+				payload.uid ||
+				payload.userId ||
+				payload.user_id,
+		)
+	}
+
+	function normalizeAdminUserCreatePayload(payload = {}) {
+		const source = normalizePayload(payload)
+		const body = { ...source }
+		if (source.uid !== undefined && body.user_id === undefined)
+			body.user_id = source.uid
+		if (source.userId !== undefined && body.user_id === undefined)
+			body.user_id = source.userId
+		if (source.displayName !== undefined && body.display_name === undefined) {
+			body.display_name = source.displayName
+		}
+		delete body.uid
+		delete body.userId
+		delete body.adminUserId
+		delete body.admin_user_id
+		delete body.id
+		delete body.displayName
+		return body
+	}
+
+	function normalizeAdminUserUpdatePayload(payload = {}) {
+		const source = normalizePayload(payload)
+		const body = { ...source }
+		if (source.displayName !== undefined && body.display_name === undefined) {
+			body.display_name = source.displayName
+		}
+		delete body.uid
+		delete body.userId
+		delete body.user_id
+		delete body.adminUserId
+		delete body.admin_user_id
+		delete body.id
+		delete body.displayName
+		return body
 	}
 
 	const callableHandlers = {
@@ -197,11 +246,17 @@
 		},
 
 		async clientReleaseExpiredBookingSlot(payload = {}) {
-			return { ok: true, skipped: true, slotId: payload.slotId || payload.slot_id }
+			return {
+				ok: true,
+				skipped: true,
+				slotId: payload.slotId || payload.slot_id,
+			}
 		},
 
 		async clientGetWaitlistQueueInfo(payload = {}) {
-			const waitlistId = encodeSegment(payload.waitlistId || payload.waitlist_id)
+			const waitlistId = encodeSegment(
+				payload.waitlistId || payload.waitlist_id,
+			)
 			if (!waitlistId) return null
 			return dataOrPayload(
 				await request(`/api/v1/waitlist/${waitlistId}/queue`, {
@@ -211,7 +266,9 @@
 		},
 
 		async adminRestrictUserAccount(payload = {}) {
-			const userId = encodeSegment(payload.uid || payload.userId || payload.user_id)
+			const userId = encodeSegment(
+				payload.uid || payload.userId || payload.user_id,
+			)
 			return dataOrPayload(
 				await request(`/api/v1/admin/security/users/${userId}/restrict`, {
 					method: "POST",
@@ -224,19 +281,17 @@
 			return dataOrPayload(
 				await request("/api/v1/admin/users", {
 					method: "POST",
-					body: payload,
+					body: normalizeAdminUserCreatePayload(payload),
 				}),
 			)
 		},
 
 		async adminUpdateAdminUser(payload = {}) {
-			const adminUserId = encodeSegment(
-				payload.adminUserId || payload.admin_user_id || payload.id,
-			)
+			const adminUserId = getAdminUserRouteId(payload)
 			return dataOrPayload(
 				await request(`/api/v1/admin/users/${adminUserId}`, {
 					method: "PATCH",
-					body: payload,
+					body: normalizeAdminUserUpdatePayload(payload),
 				}),
 			)
 		},
@@ -246,12 +301,17 @@
 		},
 
 		async adminMoveWaitlistBookingToConfirmed(payload = {}) {
-			const waitlistId = encodeSegment(payload.waitlistId || payload.waitlist_id)
+			const waitlistId = encodeSegment(
+				payload.waitlistId || payload.waitlist_id,
+			)
 			return dataOrPayload(
-				await request(`/api/v1/admin/waitlist/${waitlistId}/move-to-confirmed`, {
-					method: "POST",
-					body: payload,
-				}),
+				await request(
+					`/api/v1/admin/waitlist/${waitlistId}/move-to-confirmed`,
+					{
+						method: "POST",
+						body: payload,
+					},
+				),
 			)
 		},
 
@@ -270,7 +330,9 @@
 		const safeName = String(name || "").trim()
 		const handler = callableHandlers[safeName]
 		if (!handler) {
-			throw new Error(`No Render callable adapter is registered for ${safeName}.`)
+			throw new Error(
+				`No Render callable adapter is registered for ${safeName}.`,
+			)
 		}
 		return handler(payload)
 	}

@@ -18,7 +18,8 @@
 
 	const clone = (value) => JSON.parse(JSON.stringify(value ?? null))
 	const nowIso = () => new Date().toISOString()
-	const isObject = (value) => Boolean(value && typeof value === "object" && !Array.isArray(value))
+	const isObject = (value) =>
+		Boolean(value && typeof value === "object" && !Array.isArray(value))
 	const isUuid = (value = "") =>
 		/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
 			String(value || "").trim(),
@@ -58,7 +59,8 @@
 	}
 
 	function ensureCollection(collectionName) {
-		if (!state.collections[collectionName]) state.collections[collectionName] = {}
+		if (!state.collections[collectionName])
+			state.collections[collectionName] = {}
 		return state.collections[collectionName]
 	}
 
@@ -160,15 +162,21 @@
 			.forEach((constraint) => {
 				const direction = constraint.direction === "desc" ? -1 : 1
 				entries = [...entries].sort(([aId, aData], [bId, bData]) => {
-					const a = toSortableValue(getComparableValue(aData, aId, constraint.field))
-					const b = toSortableValue(getComparableValue(bData, bId, constraint.field))
+					const a = toSortableValue(
+						getComparableValue(aData, aId, constraint.field),
+					)
+					const b = toSortableValue(
+						getComparableValue(bData, bId, constraint.field),
+					)
 					if (a < b) return -1 * direction
 					if (a > b) return 1 * direction
 					return String(aId).localeCompare(String(bId))
 				})
 			})
 
-		const limitConstraint = constraints.find((constraint) => constraint.type === "limit")
+		const limitConstraint = constraints.find(
+			(constraint) => constraint.type === "limit",
+		)
 		if (limitConstraint) entries = entries.slice(0, limitConstraint.count)
 
 		return entries
@@ -204,7 +212,9 @@
 	}
 
 	async function supabaseAuthRequest(path, body = {}, options = {}) {
-		const supabaseUrl = String(supabaseConfig.url || supabaseConfig.supabaseUrl || "").replace(/\/+$/, "")
+		const supabaseUrl = String(
+			supabaseConfig.url || supabaseConfig.supabaseUrl || "",
+		).replace(/\/+$/, "")
 		const anonKey = String(
 			supabaseConfig.anonKey || supabaseConfig.supabaseAnonKey || "",
 		).trim()
@@ -237,7 +247,10 @@
 
 		if (!response.ok) {
 			const error = new Error(
-				payload?.msg || payload?.message || payload?.error_description || "Supabase Auth request failed.",
+				payload?.msg ||
+					payload?.message ||
+					payload?.error_description ||
+					"Supabase Auth request failed.",
 			)
 			error.code = payload?.error || payload?.code || "auth/request-failed"
 			throw error
@@ -246,7 +259,13 @@
 		return payload || {}
 	}
 
-	function makeLocalSessionUser({ uid, email = null, displayName = "", isAnonymous = false, providerId = "password" } = {}) {
+	function makeLocalSessionUser({
+		uid,
+		email = null,
+		displayName = "",
+		isAnonymous = false,
+		providerId = "password",
+	} = {}) {
 		return {
 			id: uid,
 			uid,
@@ -260,27 +279,49 @@
 				return getAccessToken()
 			},
 			async getIdTokenResult() {
-				return { token: getAccessToken(), claims: state.session?.user?.app_metadata || {} }
+				return {
+					token: getAccessToken(),
+					claims: state.session?.user?.app_metadata || {},
+				}
 			},
 			async updateProfile(updates = {}) {
-				if (typeof updates.displayName === "string") this.displayName = updates.displayName
-				if (typeof updates.photoURL === "string") this.photoURL = updates.photoURL
+				if (typeof updates.displayName === "string")
+					this.displayName = updates.displayName
+				if (typeof updates.photoURL === "string")
+					this.photoURL = updates.photoURL
 				if (getAccessToken()) {
 					await supabaseAuthRequest(
 						"/user",
-						{ data: { display_name: this.displayName, avatar_url: this.photoURL } },
+						{
+							data: {
+								display_name: this.displayName,
+								avatar_url: this.photoURL,
+							},
+						},
 						{ method: "PUT" },
-					).catch((error) => console.warn("Supabase profile update failed:", error))
+					).catch((error) =>
+						console.warn("Supabase profile update failed:", error),
+					)
 				}
 				notifyAuthListeners()
 			},
 			async updateEmail(nextEmail) {
-				if (getAccessToken()) await supabaseAuthRequest("/user", { email: nextEmail }, { method: "PUT" })
+				if (getAccessToken())
+					await supabaseAuthRequest(
+						"/user",
+						{ email: nextEmail },
+						{ method: "PUT" },
+					)
 				this.email = nextEmail
 				notifyAuthListeners()
 			},
 			async updatePassword(nextPassword) {
-				if (getAccessToken()) await supabaseAuthRequest("/user", { password: nextPassword }, { method: "PUT" })
+				if (getAccessToken())
+					await supabaseAuthRequest(
+						"/user",
+						{ password: nextPassword },
+						{ method: "PUT" },
+					)
 			},
 			async reauthenticateWithCredential() {},
 			async delete() {
@@ -328,7 +369,9 @@
 	const authListeners = []
 
 	function notifyAuthListeners() {
-		state.auth.currentUser = authService.currentUser ? clone(authService.currentUser) : null
+		state.auth.currentUser = authService.currentUser
+			? clone(authService.currentUser)
+			: null
 		authListeners.forEach((callback) => callback(authService.currentUser))
 		persistState()
 	}
@@ -355,7 +398,10 @@
 					data: { provider: "anonymous" },
 				})
 			} catch (error) {
-				console.warn("Supabase anonymous sign-in unavailable; using local guest session:", error)
+				console.warn(
+					"Supabase anonymous sign-in unavailable; using local guest session:",
+					error,
+				)
 			}
 
 			const user = sessionPayload?.user
@@ -380,7 +426,10 @@
 				password,
 			})
 			state.session = payload
-			const user = userFromSupabasePayload(payload, { email, providerId: "password" })
+			const user = userFromSupabasePayload(payload, {
+				email,
+				providerId: "password",
+			})
 			authService.currentUser = user
 			notifyAuthListeners()
 			return { user }
@@ -388,7 +437,10 @@
 		async createUserWithEmailAndPassword(email, password) {
 			const payload = await supabaseAuthRequest("/signup", { email, password })
 			state.session = payload.access_token ? payload : state.session
-			const user = userFromSupabasePayload(payload, { email, providerId: "password" })
+			const user = userFromSupabasePayload(payload, {
+				email,
+				providerId: "password",
+			})
 			authService.currentUser = user
 			notifyAuthListeners()
 			return { user }
@@ -401,7 +453,9 @@
 		},
 		async signOut() {
 			if (getAccessToken()) {
-				await supabaseAuthRequest("/logout", {}, { method: "POST" }).catch(() => {})
+				await supabaseAuthRequest("/logout", {}, { method: "POST" }).catch(
+					() => {},
+				)
 			}
 			authService.currentUser = null
 			state.session = null
@@ -414,8 +468,12 @@
 			return this.signInWithRedirect(provider)
 		},
 		async signInWithRedirect(provider) {
-			const supabaseUrl = String(supabaseConfig.url || supabaseConfig.supabaseUrl || "").replace(/\/+$/, "")
-			const anonKey = String(supabaseConfig.anonKey || supabaseConfig.supabaseAnonKey || "").trim()
+			const supabaseUrl = String(
+				supabaseConfig.url || supabaseConfig.supabaseUrl || "",
+			).replace(/\/+$/, "")
+			const anonKey = String(
+				supabaseConfig.anonKey || supabaseConfig.supabaseAnonKey || "",
+			).trim()
 			if (!supabaseUrl || !anonKey) {
 				throw new Error("Supabase OAuth is not configured.")
 			}
@@ -439,7 +497,9 @@
 	function camelizeRow(row = {}) {
 		const output = { ...row }
 		Object.entries(row || {}).forEach(([key, value]) => {
-			const camel = key.replace(/_([a-z])/g, (_match, letter) => letter.toUpperCase())
+			const camel = key.replace(/_([a-z])/g, (_match, letter) =>
+				letter.toUpperCase(),
+			)
 			if (output[camel] === undefined) output[camel] = value
 		})
 		return output
@@ -490,7 +550,8 @@
 		return {
 			...data,
 			styleName: data.styleName || data.title,
-			styleType: data.styleType || metadata.styleType || metadata.category || "Gallery",
+			styleType:
+				data.styleType || metadata.styleType || metadata.category || "Gallery",
 			imageUrl: data.imageUrl || data.image_url,
 			beforeImageUrl: data.beforeImageUrl || metadata.beforeImageUrl || "",
 			hasBeforeAfter: data.hasBeforeAfter || metadata.hasBeforeAfter === true,
@@ -502,7 +563,8 @@
 			stylistName: data.stylistName || metadata.stylistName || "",
 			serviceCategory: data.serviceCategory || metadata.serviceCategory || "",
 			serviceLabel: data.serviceLabel || metadata.serviceLabel || "",
-			featuredMostBooked: data.featuredMostBooked || metadata.featuredMostBooked === true,
+			featuredMostBooked:
+				data.featuredMostBooked || metadata.featuredMostBooked === true,
 			createdAt: data.createdAt || data.created_at,
 			updatedAt: data.updatedAt || data.updated_at,
 		}
@@ -532,7 +594,8 @@
 			adminReply: data.adminReply || metadata.adminReply || "",
 			reportsCount: data.reportsCount || metadata.reportsCount || 0,
 			featured: data.featured === true || metadata.featured === true,
-			verifiedBooking: data.verifiedBooking === true || metadata.verifiedBooking === true,
+			verifiedBooking:
+				data.verifiedBooking === true || metadata.verifiedBooking === true,
 			createdAt: data.createdAt || data.created_at,
 			updatedAt: data.updatedAt || data.updated_at,
 		}
@@ -558,7 +621,8 @@
 			auth: () => isAdminPage(),
 		},
 		blogs: {
-			path: () => (isAdminPage() ? "/api/v1/admin/blog-posts" : "/api/v1/blog-posts"),
+			path: () =>
+				isAdminPage() ? "/api/v1/admin/blog-posts" : "/api/v1/blog-posts",
 			key: "blogPosts",
 			map: mapBlog,
 			auth: () => isAdminPage(),
@@ -570,7 +634,8 @@
 			auth: () => isAdminPage(),
 		},
 		bookings: {
-			path: () => (isAdminPage() ? "/api/v1/admin/bookings" : "/api/v1/bookings/me"),
+			path: () =>
+				isAdminPage() ? "/api/v1/admin/bookings" : "/api/v1/bookings/me",
 			key: "bookings",
 			map: mapBooking,
 			auth: () => true,
@@ -616,7 +681,20 @@
 			key: "adminUsers",
 			map: (row) => {
 				const data = camelizeRow(row)
-				return { ...data, uid: data.userId || row.user_id || row.userId }
+				const adminUserId = String(
+					data.adminUserId || data.admin_user_id || data.id || row.id || "",
+				).trim()
+				const uid = String(
+					data.uid || data.userId || row.user_id || row.userId || "",
+				).trim()
+				return {
+					...data,
+					adminUserId,
+					admin_user_id: adminUserId,
+					uid,
+					userId: uid,
+					displayName: data.displayName || data.display_name || "",
+				}
 			},
 			auth: () => true,
 		},
@@ -626,11 +704,20 @@
 		return /admin\.html(?:$|[?#])/i.test(window.location.href)
 	}
 
+	function shouldPollRemoteCollection(collectionName) {
+		return isAdminPage() && Boolean(remoteCollections[collectionName])
+	}
+
+	function getRemoteRefreshInterval(collectionName) {
+		return Number(remoteCollections[collectionName]?.pollIntervalMs || 3000)
+	}
+
 	async function refreshRemoteCollection(collectionName, constraints = []) {
 		const config = remoteCollections[collectionName]
 		if (!config || !window.RenderApi?.isConfigured?.()) return false
 		try {
-			const limit = constraints.find((item) => item.type === "limit")?.count || 200
+			const limit =
+				constraints.find((item) => item.type === "limit")?.count || 200
 			const payload = window.RenderApi.dataOrPayload(
 				await window.RenderApi.request(
 					`${config.path()}${normalizeQueryString({ limit })}`,
@@ -644,15 +731,25 @@
 			rows.map(config.map).forEach((row, index) => {
 				const id = String(
 					collectionName === "adminUsers"
-						? row.uid || row.userId || row.user_id || row.id || `${collectionName}-${index + 1}`
+						? row.uid ||
+								row.userId ||
+								row.user_id ||
+								row.id ||
+								`${collectionName}-${index + 1}`
 						: row.id || `${collectionName}-${index + 1}`,
 				)
-				collection[id] = { ...row, id }
+				collection[id] =
+					collectionName === "adminUsers"
+						? { ...row, adminUserId: row.adminUserId || row.id || "", id }
+						: { ...row, id }
 			})
 			persistState()
 			return true
 		} catch (error) {
-			console.warn(`Render collection fetch failed for ${collectionName}:`, error)
+			console.warn(
+				`Render collection fetch failed for ${collectionName}:`,
+				error,
+			)
 			return false
 		}
 	}
@@ -665,22 +762,36 @@
 
 		try {
 			const payload = window.RenderApi.dataOrPayload(
-				await window.RenderApi.request("/api/v1/admin/users/me", { auth: true }),
+				await window.RenderApi.request("/api/v1/admin/users/me", {
+					auth: true,
+				}),
 			)
 			const source = payload?.adminUser || payload?.item || payload
 			if (!isObject(source)) return false
 
 			const row = config.map(source)
 			const documentId = String(
-				row.uid || row.userId || row.user_id || source.user_id || source.userId || safeId,
+				row.uid ||
+					row.userId ||
+					row.user_id ||
+					source.user_id ||
+					source.userId ||
+					safeId,
 			).trim()
 			if (!documentId) return false
 
-			ensureCollection(collectionName)[documentId] = { ...row, id: documentId }
+			ensureCollection(collectionName)[documentId] = {
+				...row,
+				adminUserId: row.adminUserId || row.id || "",
+				id: documentId,
+			}
 			persistState()
 			return documentId === safeId
 		} catch (error) {
-			console.warn(`Render document fetch failed for ${collectionName}/${safeId}:`, error)
+			console.warn(
+				`Render document fetch failed for ${collectionName}/${safeId}:`,
+				error,
+			)
 			return false
 		}
 	}
@@ -691,7 +802,9 @@
 			id: safeId,
 			path: `${collectionName}/${safeId}`,
 			collection(subcollectionName) {
-				return makeCollectionRef(`${collectionName}/${safeId}/${subcollectionName}`)
+				return makeCollectionRef(
+					`${collectionName}/${safeId}/${subcollectionName}`,
+				)
 			},
 			async get() {
 				if (collectionName === "adminUsers") {
@@ -703,11 +816,21 @@
 			},
 			async set(data, options = {}) {
 				setDocData(collectionName, safeId, data, options)
-				await syncRemoteMutation(collectionName, safeId, ensureCollection(collectionName)[safeId], "set")
+				await syncRemoteMutation(
+					collectionName,
+					safeId,
+					ensureCollection(collectionName)[safeId],
+					"set",
+				)
 			},
 			async update(data) {
 				setDocData(collectionName, safeId, data, { merge: true })
-				await syncRemoteMutation(collectionName, safeId, ensureCollection(collectionName)[safeId], "update")
+				await syncRemoteMutation(
+					collectionName,
+					safeId,
+					ensureCollection(collectionName)[safeId],
+					"update",
+				)
 			},
 			async delete() {
 				delete ensureCollection(collectionName)[safeId]
@@ -716,16 +839,43 @@
 				await syncRemoteMutation(collectionName, safeId, null, "delete")
 			},
 			onSnapshot(success, error) {
+				let isDisposed = false
+				let refreshTimer = null
+				let isRefreshing = false
+				let needsRefresh = false
 				const tick = async () => {
+					if (isDisposed) return
+					if (isRefreshing) {
+						needsRefresh = true
+						return
+					}
+					isRefreshing = true
 					try {
 						await refreshRemoteCollection(collectionName)
-						success(makeSnapshot(safeId, collectionName))
+						if (!isDisposed) success(makeSnapshot(safeId, collectionName))
 					} catch (snapshotError) {
 						if (typeof error === "function") error(snapshotError)
+					} finally {
+						isRefreshing = false
+						if (needsRefresh && !isDisposed) {
+							needsRefresh = false
+							window.setTimeout(tick, 0)
+						}
 					}
 				}
 				window.setTimeout(tick, 0)
-				return subscribeCollection(collectionName, tick)
+				if (shouldPollRemoteCollection(collectionName)) {
+					refreshTimer = window.setInterval(
+						tick,
+						getRemoteRefreshInterval(collectionName),
+					)
+				}
+				const unsubscribeLocal = subscribeCollection(collectionName, tick)
+				return () => {
+					isDisposed = true
+					if (refreshTimer) window.clearInterval(refreshTimer)
+					unsubscribeLocal()
+				}
 			},
 		}
 	}
@@ -786,16 +936,44 @@
 				return makeQuerySnapshot(collectionName, constraints)
 			},
 			onSnapshot(success, error) {
+				let isDisposed = false
+				let refreshTimer = null
+				let isRefreshing = false
+				let needsRefresh = false
 				const tick = async () => {
+					if (isDisposed) return
+					if (isRefreshing) {
+						needsRefresh = true
+						return
+					}
+					isRefreshing = true
 					try {
 						await refreshRemoteCollection(collectionName, constraints)
-						success(makeQuerySnapshot(collectionName, constraints))
+						if (!isDisposed)
+							success(makeQuerySnapshot(collectionName, constraints))
 					} catch (snapshotError) {
 						if (typeof error === "function") error(snapshotError)
+					} finally {
+						isRefreshing = false
+						if (needsRefresh && !isDisposed) {
+							needsRefresh = false
+							window.setTimeout(tick, 0)
+						}
 					}
 				}
 				window.setTimeout(tick, 0)
-				return subscribeCollection(collectionName, tick)
+				if (shouldPollRemoteCollection(collectionName)) {
+					refreshTimer = window.setInterval(
+						tick,
+						getRemoteRefreshInterval(collectionName),
+					)
+				}
+				const unsubscribeLocal = subscribeCollection(collectionName, tick)
+				return () => {
+					isDisposed = true
+					if (refreshTimer) window.clearInterval(refreshTimer)
+					unsubscribeLocal()
+				}
 			},
 		}
 	}
@@ -812,15 +990,19 @@
 			appointment_date: data.date || data.appointment_date,
 			appointment_time: data.time || data.appointment_time,
 			notes: data.notes || null,
-			inspiration_image_url: data.inspirationImageUrl || data.inspiration_image_url || null,
+			inspiration_image_url:
+				data.inspirationImageUrl || data.inspiration_image_url || null,
 			metadata: data.metadata || {},
 		}
 	}
 
 	function mapContactPayload(data = {}) {
-		const nameParts = String(data.name || "").trim().split(/\s+/)
+		const nameParts = String(data.name || "")
+			.trim()
+			.split(/\s+/)
 		return {
-			first_name: data.firstName || data.first_name || nameParts.shift() || "Website",
+			first_name:
+				data.firstName || data.first_name || nameParts.shift() || "Website",
 			last_name: data.lastName || data.last_name || nameParts.join(" ") || null,
 			email: data.email,
 			phone: data.phone || null,
@@ -871,7 +1053,11 @@
 	async function syncRemoteMutation(collectionName, id, data, operation) {
 		if (!window.RenderApi?.isConfigured?.()) return
 		try {
-			if (collectionName === "bookings" && operation !== "delete" && data?.service) {
+			if (
+				collectionName === "bookings" &&
+				operation !== "delete" &&
+				data?.service
+			) {
 				if (isUuid(id)) return
 				const result = window.RenderApi.dataOrPayload(
 					await window.RenderApi.request("/api/v1/bookings", {
@@ -890,9 +1076,12 @@
 
 			if (collectionName === "contactMessages") {
 				if (operation === "delete" && isUuid(id)) {
-					await window.RenderApi.request(`/api/v1/admin/contact-messages/${id}`, {
-						method: "DELETE",
-					})
+					await window.RenderApi.request(
+						`/api/v1/admin/contact-messages/${id}`,
+						{
+							method: "DELETE",
+						},
+					)
 				} else if (operation !== "delete" && data?.message && !isUuid(id)) {
 					await window.RenderApi.request("/api/v1/contact-messages", {
 						method: "POST",
@@ -900,10 +1089,15 @@
 						auth: Boolean(getAccessToken()),
 					})
 				} else if (isUuid(id) && data?.status) {
-					await window.RenderApi.request(`/api/v1/admin/contact-messages/${id}/status`, {
-						method: "POST",
-						body: { status: data.status === "read" ? "in_progress" : data.status },
-					})
+					await window.RenderApi.request(
+						`/api/v1/admin/contact-messages/${id}/status`,
+						{
+							method: "POST",
+							body: {
+								status: data.status === "read" ? "in_progress" : data.status,
+							},
+						},
+					)
 				}
 				return
 			}
@@ -916,20 +1110,27 @@
 						auth: Boolean(getAccessToken()),
 					})
 				} else if (isUuid(id) && data?.status && isAdminPage()) {
-					await window.RenderApi.request(`/api/v1/admin/reviews/${id}/moderate`, {
-						method: "POST",
-						body: { status: data.status, metadata: data.metadata || {} },
-					})
+					await window.RenderApi.request(
+						`/api/v1/admin/reviews/${id}/moderate`,
+						{
+							method: "POST",
+							body: { status: data.status, metadata: data.metadata || {} },
+						},
+					)
 				}
 				return
 			}
 
 			if (collectionName === "galleryStyles" && isAdminPage()) {
 				if (operation === "delete" && isUuid(id)) {
-					await window.RenderApi.request(`/api/v1/admin/gallery/${id}`, { method: "DELETE" })
+					await window.RenderApi.request(`/api/v1/admin/gallery/${id}`, {
+						method: "DELETE",
+					})
 				} else if (operation !== "delete") {
 					await window.RenderApi.request(
-						isUuid(id) ? `/api/v1/admin/gallery/${id}` : "/api/v1/admin/gallery",
+						isUuid(id)
+							? `/api/v1/admin/gallery/${id}`
+							: "/api/v1/admin/gallery",
 						{
 							method: isUuid(id) ? "PATCH" : "POST",
 							body: mapGalleryPayload(data),
@@ -946,7 +1147,9 @@
 					})
 				} else if (operation !== "delete") {
 					await window.RenderApi.request(
-						isUuid(id) ? `/api/v1/admin/blog-posts/${id}` : "/api/v1/admin/blog-posts",
+						isUuid(id)
+							? `/api/v1/admin/blog-posts/${id}`
+							: "/api/v1/admin/blog-posts",
 						{
 							method: isUuid(id) ? "PATCH" : "POST",
 							body: mapBlogPayload(data),
@@ -956,14 +1159,22 @@
 				return
 			}
 
-			if (collectionName === "bookings" && isAdminPage() && isUuid(id) && data?.status) {
+			if (
+				collectionName === "bookings" &&
+				isAdminPage() &&
+				isUuid(id) &&
+				data?.status
+			) {
 				await window.RenderApi.request(`/api/v1/admin/bookings/${id}/status`, {
 					method: "POST",
 					body: { status: data.status },
 				})
 			}
 		} catch (error) {
-			console.warn(`Render mutation sync skipped/failed for ${collectionName}:`, error)
+			console.warn(
+				`Render mutation sync skipped/failed for ${collectionName}:`,
+				error,
+			)
 		}
 	}
 

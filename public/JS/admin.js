@@ -585,14 +585,23 @@ async function fetchAdminAccessProfile(uid = "") {
 	if (!snapshot.exists) return null
 
 	const source = snapshot.data() || {}
+	const sourceUid = String(
+		source.uid || source.userId || source.user_id || snapshot.id || cleanUid,
+	).trim()
 	return {
-		uid: snapshot.id,
+		adminUserId: String(
+			source.adminUserId || source.admin_user_id || source.adminId || "",
+		).trim(),
+		uid: sourceUid || snapshot.id,
 		email: String(source.email || "")
 			.trim()
 			.toLowerCase(),
+		displayName: String(source.displayName || source.display_name || "").trim(),
 		role: normalizeAdminRoleValue(source.role),
 		active: source.active === true,
 		permissions: normalizeAdminPermissionsValue(source.permissions),
+		createdAt: source.createdAt || source.created_at || null,
+		updatedAt: source.updatedAt || source.updated_at || null,
 	}
 }
 
@@ -1634,18 +1643,67 @@ async function callAdminUpdateBookingStatusAndReleaseSlotAction(payload = {}) {
 function normalizeManagedAdminUserDoc(doc = {}) {
 	const role = normalizeAdminRoleValue(doc.role || "") || "admin"
 	const permissions = normalizeAdminPermissionsValue(doc.permissions)
+	const uid = String(
+		doc.uid || doc.userId || doc.user_id || doc.authUserId || doc.auth_user_id || "",
+	).trim()
+	const adminUserId = String(
+		doc.adminUserId || doc.admin_user_id || doc.adminId || doc.admin_id || doc.id || "",
+	).trim()
 	return {
-		uid: String(doc.uid || "").trim(),
+		id: adminUserId || uid,
+		adminUserId,
+		uid,
 		email: String(doc.email || "")
 			.trim()
 			.toLowerCase(),
-		displayName: String(doc.displayName || "").trim(),
+		displayName: String(doc.displayName || doc.display_name || "").trim(),
 		role,
 		active: doc.active !== false,
 		permissions,
-		createdAt: doc.createdAt || null,
-		updatedAt: doc.updatedAt || null,
+		createdAt: doc.createdAt || doc.created_at || null,
+		updatedAt: doc.updatedAt || doc.updated_at || null,
 	}
+}
+
+function getCurrentAdminManagedUserDoc() {
+	if (!adminAccessProfile && !auth?.currentUser) return null
+	const currentUser = auth?.currentUser || {}
+	return normalizeManagedAdminUserDoc({
+		...(adminAccessProfile || {}),
+		uid: adminAccessProfile?.uid || currentUser.uid,
+		email: adminAccessProfile?.email || currentUser.email || "",
+		displayName:
+			adminAccessProfile?.displayName || currentUser.displayName || "",
+		active: adminAccessProfile?.active === true,
+	})
+}
+
+function mergeCurrentAdminIntoManagedUsers(docs = []) {
+	const normalizedDocs = (Array.isArray(docs) ? docs : [])
+		.map(normalizeManagedAdminUserDoc)
+		.filter((item) => item.uid || item.adminUserId)
+	const currentAdmin = getCurrentAdminManagedUserDoc()
+
+	if (!currentAdmin?.uid) return normalizedDocs
+
+	const currentIndex = normalizedDocs.findIndex(
+		(item) => item.uid && item.uid === currentAdmin.uid,
+	)
+
+	if (currentIndex >= 0) {
+		const existing = normalizedDocs[currentIndex]
+		normalizedDocs[currentIndex] = {
+			...existing,
+			...currentAdmin,
+			adminUserId: existing.adminUserId || currentAdmin.adminUserId,
+			id: existing.adminUserId || currentAdmin.adminUserId || existing.id || currentAdmin.id,
+			active: currentAdmin.active === true ? true : existing.active,
+		}
+		return normalizedDocs
+	}
+
+	normalizedDocs.unshift(currentAdmin)
+	return normalizedDocs
 }
 
 function getManagedAdminRoleLabel(role = "") {
@@ -1734,8 +1792,13 @@ function getAdminManagementFormElements() {
 function getAdminManagementFormValues() {
 	const el = getAdminManagementFormElements()
 	const role = normalizeAdminRoleValue(el.role?.value || "") || "admin"
+	const editUid = String(el.editUid?.value || "").trim()
+	const existingAdminRecord = editUid
+		? adminManagedUsersDocs.find((item) => item.uid === editUid)
+		: null
 	const payload = {
-		uid: String(el.editUid?.value || "").trim(),
+		adminUserId: existingAdminRecord?.adminUserId || "",
+		uid: editUid,
 		email: String(el.email?.value || "")
 			.trim()
 			.toLowerCase(),
@@ -1966,8 +2029,14 @@ async function refreshAdminManagedUsers() {
 	if (!adminUnlocked || !isCurrentSuperAdmin()) return
 
 	const data = await callAdminListAdminUsersAction()
-	const list = Array.isArray(data?.admins) ? data.admins : []
-	adminManagedUsersDocs = list.map(normalizeManagedAdminUserDoc)
+	const list = Array.isArray(data?.adminUsers)
+		? data.adminUsers
+		: Array.isArray(data?.admins)
+			? data.admins
+			: Array.isArray(data?.items)
+				? data.items
+				: []
+	adminManagedUsersDocs = mergeCurrentAdminIntoManagedUsers(list)
 	renderAdminManagedUsers()
 }
 
@@ -2003,7 +2072,12 @@ async function saveManagedAdminUserFromForm(event) {
 
 	try {
 		if (isEdit) {
+			const targetAdmin = adminManagedUsersDocs.find(
+				(item) => item.uid === payload.uid,
+			)
 			await callAdminUpdateAdminUserAction({
+				adminUserId:
+					payload.adminUserId || targetAdmin?.adminUserId || payload.uid,
 				uid: payload.uid,
 				email: payload.email,
 				displayName: payload.displayName,
@@ -6682,7 +6756,7 @@ function startAdminSecurityListener() {
 }
 
 function startAdminUsersListener() {
-	if (!canStartAdminRealtimeListener("canManageSecurity")) {
+	if (!canStartAdminRealtimeListener("canManageAdmins")) {
 		stopAdminUsersListener()
 		return
 	}
@@ -6690,21 +6764,27 @@ function startAdminUsersListener() {
 	stopAdminUsersListener()
 
 	adminUsersUnsubscribe = db
-		.collection("users")
+		.collection("adminUsers")
 		.limit(1000)
 		.onSnapshot(
 			(snapshot) => {
-				adminUserDocs = snapshot.docs.map((doc) => ({
-					id: doc.id,
-					...doc.data(),
-				}))
+				adminUserDocs = snapshot.docs.map((doc) =>
+					normalizeManagedAdminUserDoc({
+						uid: doc.id,
+						...doc.data(),
+					}),
+				)
+				if (isCurrentSuperAdmin()) {
+					adminManagedUsersDocs = mergeCurrentAdminIntoManagedUsers(adminUserDocs)
+					renderAdminManagedUsers()
+				}
 				updateAdminSecurityWidgets()
 			},
 			(error) => {
 				console.error("Admin users listener failed:", error)
 				setAdminMessage(
 					"error",
-					`❌ Failed to watch users in realtime: ${error.message || "unknown error"}`,
+					`❌ Failed to watch admin users in realtime: ${error.message || "unknown error"}`,
 					"adminSecurityEventsMessage",
 				)
 			},
@@ -7890,6 +7970,7 @@ function initializeAdminPanel() {
 
 			try {
 				await callAdminUpdateAdminUserAction({
+					adminUserId: target.adminUserId || targetUid,
 					uid: targetUid,
 					email: target.email,
 					active: nextActive,

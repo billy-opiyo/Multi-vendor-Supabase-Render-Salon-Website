@@ -151,7 +151,11 @@ function createAdminService({ adminRepository } = {}) {
 		},
 
 		async updateAdminUser(actorAdmin, adminUserId, payload) {
-			const existing = await repository.findById(adminUserId)
+			let existing = await repository.findById(adminUserId)
+
+			if (!existing) {
+				existing = await repository.findByUserId(adminUserId)
+			}
 
 			if (!existing) {
 				throw new ApiError(
