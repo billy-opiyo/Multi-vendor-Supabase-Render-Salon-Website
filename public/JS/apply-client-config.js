@@ -207,7 +207,11 @@
 		const config = window.CLIENT_CONFIG || {}
 		if (!Object.keys(config).length) return
 
-		applyHead(config)
+		const preservePageHead =
+			document.documentElement.dataset.clientConfigPreserveHead === "true" ||
+			document.body?.dataset.clientConfigPreserveHead === "true"
+
+		if (!preservePageHead) applyHead(config)
 		applyTheme(config)
 		applyTextBindings(config)
 		applyAttributeBindings(config)
