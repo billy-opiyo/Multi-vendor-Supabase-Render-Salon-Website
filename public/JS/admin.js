@@ -78,6 +78,7 @@ const defaultAdminSection = "bookings"
 const ADMIN_APP_NAME = "royalBraidsAdminApp"
 const ADMIN_SESSION_STALE_AFTER_MS = 2 * 60 * 1000
 const ADMIN_SECURITY_BLOCK_DEFAULT_MINUTES = 60
+const ADMIN_SECURITY_RESTRICTION_NOTICE_KEY = "rb_admin_security_restriction"
 const ADMIN_SERVICE_SETTINGS_DOC_PATH = ["siteSettings", "serviceCategories"]
 const ADMIN_SERVICE_CATEGORY_DEFINITIONS = [
 	{ key: "braids-services", label: "Braids Services" },
@@ -357,8 +358,10 @@ function initializeAdminFloatingTooltips() {
 
 		const targetRect = target.getBoundingClientRect()
 		const tooltipRect = tooltip.getBoundingClientRect()
-		const viewportWidth = window.innerWidth || document.documentElement.clientWidth
-		const viewportHeight = window.innerHeight || document.documentElement.clientHeight
+		const viewportWidth =
+			window.innerWidth || document.documentElement.clientWidth
+		const viewportHeight =
+			window.innerHeight || document.documentElement.clientHeight
 		const targetCenter = targetRect.left + targetRect.width / 2
 		let placement = "top"
 		let top = targetRect.top - tooltipRect.height - 10
@@ -389,7 +392,10 @@ function initializeAdminFloatingTooltips() {
 		tooltip.dataset.placement = placement
 		tooltip.style.left = `${Math.round(left)}px`
 		tooltip.style.top = `${Math.round(top)}px`
-		tooltip.style.setProperty("--tooltip-arrow-left", `${Math.round(arrowLeft)}px`)
+		tooltip.style.setProperty(
+			"--tooltip-arrow-left",
+			`${Math.round(arrowLeft)}px`,
+		)
 	}
 
 	const showTooltip = (target) => {
@@ -412,7 +418,8 @@ function initializeAdminFloatingTooltips() {
 			activeTarget = target
 
 			if (target.hasAttribute("title")) {
-				target.dataset.adminTooltipNativeTitle = target.getAttribute("title") || ""
+				target.dataset.adminTooltipNativeTitle =
+					target.getAttribute("title") || ""
 				target.removeAttribute("title")
 			}
 
@@ -432,7 +439,10 @@ function initializeAdminFloatingTooltips() {
 	}
 
 	const getTooltipTargetAtPoint = (event) => {
-		const pointedElement = document.elementFromPoint(event.clientX, event.clientY)
+		const pointedElement = document.elementFromPoint(
+			event.clientX,
+			event.clientY,
+		)
 		return pointedElement?.closest?.(tooltipSelector) || null
 	}
 
@@ -513,6 +523,110 @@ function resetAdminLoginCredentials() {
 	}
 
 	setAdminPasswordVisibility(false)
+}
+
+function normalizeAdminLoginDeviceType(userAgent = navigator.userAgent || "") {
+	const ua = String(userAgent || "").toLowerCase()
+	if (/ipad|tablet/.test(ua)) return "tablet"
+	if (/mobi|android|iphone|ipod/.test(ua)) return "mobile"
+	if (ua) return "desktop"
+	return "unknown"
+}
+
+function getAdminLoginBrowserLabel(userAgent = navigator.userAgent || "") {
+	const ua = String(userAgent || "")
+	if (/Edg\//.test(ua)) return "Edge"
+	if (/OPR\//.test(ua)) return "Opera"
+	if (/Chrome\//.test(ua) && !/Chromium\//.test(ua)) return "Chrome"
+	if (/Firefox\//.test(ua)) return "Firefox"
+	if (/Safari\//.test(ua) && !/Chrome\//.test(ua)) return "Safari"
+	return "Unknown"
+}
+
+function buildAdminLoginActivityPayload({
+	email = "",
+	status = "success",
+	error = null,
+} = {}) {
+	const userAgent = navigator.userAgent || ""
+	return {
+		loginMethod: "email/password",
+		status: status === "failure" ? "failure" : "success",
+		deviceType: normalizeAdminLoginDeviceType(userAgent),
+		browser: getAdminLoginBrowserLabel(userAgent),
+		locale: navigator.language || "",
+		timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
+		source: "admin-console",
+		failureCode:
+			status === "failure"
+				? String(error?.code || error?.status || "admin_login_failed").slice(
+						0,
+						80,
+					)
+				: undefined,
+		attemptedEmail:
+			String(email || "")
+				.trim()
+				.toLowerCase() || undefined,
+		metadata: {
+			path: window.location.pathname || "/admin.html",
+			userAgent,
+		},
+	}
+}
+
+async function logAdminLoginActivity({
+	email = "",
+	status = "success",
+	error = null,
+} = {}) {
+	if (
+		!appServicesReady ||
+		!adminCallableService ||
+		typeof adminCallableService.httpsCallable !== "function"
+	) {
+		return
+	}
+
+	try {
+		const callable = adminCallableService.httpsCallable("logLoginActivity")
+		await callable(buildAdminLoginActivityPayload({ email, status, error }))
+	} catch (logError) {
+		console.warn("Admin login telemetry failed:", logError)
+	}
+}
+
+function takeAdminSecurityRestrictionNotice() {
+	try {
+		const raw = sessionStorage.getItem(ADMIN_SECURITY_RESTRICTION_NOTICE_KEY)
+		if (!raw) return null
+		sessionStorage.removeItem(ADMIN_SECURITY_RESTRICTION_NOTICE_KEY)
+		const parsed = JSON.parse(raw)
+		return parsed && typeof parsed === "object" ? parsed : null
+	} catch (_error) {
+		return null
+	}
+}
+
+function getAdminSecurityRestrictionMessage(notice = {}) {
+	const fallback =
+		"This session needs attention before continuing. Please sign in again."
+	const message = String(notice.message || "").trim() || fallback
+	if (notice.code === "force_logout_required") {
+		return "Your session was refreshed for security. Please sign in again."
+	}
+	return message
+}
+
+function showStoredAdminSecurityRestrictionNotice() {
+	const notice = takeAdminSecurityRestrictionNotice()
+	if (!notice) return false
+	setAdminMessage(
+		"error",
+		`Security notice: ${getAdminSecurityRestrictionMessage(notice)}`,
+		"adminAuthMessage",
+	)
+	return true
 }
 
 function getAdminAppServices() {
@@ -1644,10 +1758,20 @@ function normalizeManagedAdminUserDoc(doc = {}) {
 	const role = normalizeAdminRoleValue(doc.role || "") || "admin"
 	const permissions = normalizeAdminPermissionsValue(doc.permissions)
 	const uid = String(
-		doc.uid || doc.userId || doc.user_id || doc.authUserId || doc.auth_user_id || "",
+		doc.uid ||
+			doc.userId ||
+			doc.user_id ||
+			doc.authUserId ||
+			doc.auth_user_id ||
+			"",
 	).trim()
 	const adminUserId = String(
-		doc.adminUserId || doc.admin_user_id || doc.adminId || doc.admin_id || doc.id || "",
+		doc.adminUserId ||
+			doc.admin_user_id ||
+			doc.adminId ||
+			doc.admin_id ||
+			doc.id ||
+			"",
 	).trim()
 	return {
 		id: adminUserId || uid,
@@ -1696,7 +1820,11 @@ function mergeCurrentAdminIntoManagedUsers(docs = []) {
 			...existing,
 			...currentAdmin,
 			adminUserId: existing.adminUserId || currentAdmin.adminUserId,
-			id: existing.adminUserId || currentAdmin.adminUserId || existing.id || currentAdmin.id,
+			id:
+				existing.adminUserId ||
+				currentAdmin.adminUserId ||
+				existing.id ||
+				currentAdmin.id,
 			active: currentAdmin.active === true ? true : existing.active,
 		}
 		return normalizedDocs
@@ -2247,18 +2375,22 @@ function getAdminStatusFilterLabel(status = "") {
 }
 
 function updateAdminContactStatusFilterControls() {
-	const activeFilter = normalizeAdminContactStatusFilter(adminContactStatusFilter)
+	const activeFilter = normalizeAdminContactStatusFilter(
+		adminContactStatusFilter,
+	)
 	const controls = document.getElementById("adminContactStatusFilterControls")
 	if (controls) controls.dataset.activeStatusFilter = activeFilter
 
-	document.querySelectorAll("[data-contact-status-filter]").forEach((button) => {
-		const buttonFilter = normalizeAdminContactStatusFilter(
-			button.dataset.contactStatusFilter,
-		)
-		const isActive = activeFilter !== "all" && buttonFilter === activeFilter
-		button.classList.toggle("active", isActive)
-		button.setAttribute("aria-pressed", isActive ? "true" : "false")
-	})
+	document
+		.querySelectorAll("[data-contact-status-filter]")
+		.forEach((button) => {
+			const buttonFilter = normalizeAdminContactStatusFilter(
+				button.dataset.contactStatusFilter,
+			)
+			const isActive = activeFilter !== "all" && buttonFilter === activeFilter
+			button.classList.toggle("active", isActive)
+			button.setAttribute("aria-pressed", isActive ? "true" : "false")
+		})
 }
 
 function getContactStatusClass(status) {
@@ -4970,7 +5102,9 @@ async function deleteReview(reviewId) {
 async function handleAuthStateChange(user) {
 	if (!user) {
 		setAdminUnlockedState(false)
-		if (adminPendingLogoutToast) {
+		if (showStoredAdminSecurityRestrictionNotice()) {
+			adminPendingLogoutToast = false
+		} else if (adminPendingLogoutToast) {
 			setAdminMessage(
 				"success",
 				"✅ Logged Out Successfully",
@@ -6775,7 +6909,8 @@ function startAdminUsersListener() {
 					}),
 				)
 				if (isCurrentSuperAdmin()) {
-					adminManagedUsersDocs = mergeCurrentAdminIntoManagedUsers(adminUserDocs)
+					adminManagedUsersDocs =
+						mergeCurrentAdminIntoManagedUsers(adminUserDocs)
 					renderAdminManagedUsers()
 				}
 				updateAdminSecurityWidgets()
@@ -7088,11 +7223,13 @@ function initializeAdminPanel() {
 
 		try {
 			await auth.signInWithEmailAndPassword(email, password)
+			await logAdminLoginActivity({ email, status: "success" })
 			if (passwordInput) {
 				passwordInput.value = ""
 				setAdminPasswordVisibility(false)
 			}
 		} catch (error) {
+			await logAdminLoginActivity({ email, status: "failure", error })
 			console.error("Admin log in failed:", error)
 			setAdminMessage(
 				"error",
@@ -8094,6 +8231,15 @@ function initializeAdminPanel() {
 			}
 		})
 	}
+
+	window.addEventListener("appservices:security-restriction", (event) => {
+		adminPendingLogoutToast = false
+		setAdminMessage(
+			"error",
+			`Security notice: ${getAdminSecurityRestrictionMessage(event.detail || {})}`,
+			"adminAuthMessage",
+		)
+	})
 
 	document.addEventListener("keydown", (event) => {
 		if (event.key === "Escape" && adminConfirmState.isOpen) {

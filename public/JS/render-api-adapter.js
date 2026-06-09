@@ -7,6 +7,12 @@
 	const appConfig = window.APP_CONFIG || {}
 	const integrations = clientConfig.integrations || {}
 	const renderConfig = appConfig.render || integrations.render || {}
+	const SESSION_SECURITY_ERROR_KEY = "rb_admin_security_restriction"
+	const SECURITY_RESTRICTION_ERROR_CODES = new Set([
+		"account_temporarily_blocked",
+		"force_logout_required",
+		"password_reset_required",
+	])
 
 	function trimSlash(value = "") {
 		return String(value || "").replace(/\/+$/, "")
@@ -38,6 +44,54 @@
 			)
 		}
 		return fallback
+	}
+
+	function isSecurityRestrictionError(payload) {
+		return SECURITY_RESTRICTION_ERROR_CODES.has(String(payload?.code || ""))
+	}
+
+	function persistSecurityRestrictionNotice(detail) {
+		try {
+			sessionStorage.setItem(
+				SESSION_SECURITY_ERROR_KEY,
+				JSON.stringify({
+					...detail,
+					createdAt: new Date().toISOString(),
+				}),
+			)
+		} catch (_error) {
+			// Session storage may be unavailable; the in-page event still notifies UI code.
+		}
+	}
+
+	function handleSecurityRestrictionError(error) {
+		const payload = isPlainObject(error?.payload) ? error.payload : {}
+		if (!isSecurityRestrictionError(payload)) return
+
+		const detail = {
+			code: payload.code,
+			message: toErrorMessage(
+				payload,
+				"This session needs attention before continuing.",
+			),
+			status: error.status || 0,
+		}
+		persistSecurityRestrictionNotice(detail)
+
+		try {
+			window.dispatchEvent(
+				new CustomEvent("appservices:security-restriction", { detail }),
+			)
+		} catch (_error) {
+			// Older browsers/tests may not support CustomEvent construction here.
+		}
+
+		const authService = window.AppServices?.auth
+		if (authService?.currentUser && typeof authService.signOut === "function") {
+			window.setTimeout(() => {
+				authService.signOut().catch(() => {})
+			}, 0)
+		}
 	}
 
 	async function readJsonResponse(response) {
@@ -120,7 +174,9 @@
 				),
 			)
 			error.status = response.status
+			error.code = isPlainObject(payload) ? payload.code : undefined
 			error.payload = payload
+			handleSecurityRestrictionError(error)
 			throw error
 		}
 
