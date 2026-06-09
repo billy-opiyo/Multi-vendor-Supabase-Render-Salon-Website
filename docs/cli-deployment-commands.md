@@ -206,7 +206,7 @@ salon-render-backend
 Example:
 
 ```cmd
-render deploys create srv-abc123example --wait
+render deploys create srv-abc123example --wait --confirm
 ```
 
 Use this after pushing code to GitHub.
