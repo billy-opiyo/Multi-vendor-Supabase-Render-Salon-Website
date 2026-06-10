@@ -15,7 +15,7 @@ Before final sign-off, capture links or notes for each item below:
 - Supabase production project URL/reference.
 - Supabase migration confirmation.
 - Render web service URL and `/health` result.
-- Render cron job run logs.
+- External scheduler run logs and Render backend job endpoint logs.
 - Vercel deployment URL/custom domain.
 - Local or CI test output.
 - Admin bootstrap verification.
@@ -134,7 +134,7 @@ Notes: Supabase URL and anon key are configured and verified in live Vercel publ
 
 ## 3. Render backend readiness
 
-The root `render.yaml` defines the web service and cron jobs.
+The root `render.yaml` defines the Render web service only. Scheduled jobs are triggered by a free external scheduler through protected backend HTTP endpoints.
 
 Checklist:
 
@@ -166,7 +166,8 @@ Required Render server-only variables:
 - [ ] `CLOUDINARY_API_KEY` if uploads are enabled
 - [ ] `CLOUDINARY_API_SECRET` if uploads are enabled
 - [ ] `CLOUDINARY_UPLOAD_FOLDER` if uploads are enabled
-- [ ] `JOB_SECRET` if protected job endpoints/scripts are enabled
+- [ ] `JOB_SECRET` for protected scheduled job endpoints
+- [ ] `UPCOMING_REMINDER_LEAD_TIME_MINUTES`
 - [ ] `UPCOMING_REMINDER_WINDOW_MINUTES`
 - [ ] `EXPIRED_SLOT_GRACE_MINUTES`
 
@@ -180,28 +181,28 @@ Approved origins: https://royal-braids-salon.vercel.app
 Notes: Live CORS allows the approved Vercel origin. Unexpected origin https://example.invalid is rejected with no access-control-allow-origin header, HTTP 403, and typed error cors_origin_not_allowed.
 ```
 
-## 4. Render cron/job readiness
+## 4. External scheduled job readiness
 
 Checklist:
 
-- [ ] `salon-flush-notification-outbox` exists and runs `npm run job:notifications` every 5 minutes.
-- [ ] `salon-upcoming-booking-reminders` exists and runs `npm run job:reminders` every 15 minutes.
-- [ ] `salon-release-expired-booking-slots` exists and runs `npm run job:release-expired-slots` every 15 minutes.
-- [ ] `salon-waitlist-slot-open-notifications` exists and runs `npm run job:waitlist-slot-open` every 15 minutes.
-- [ ] Each cron job has the required Supabase and provider environment variables.
-- [ ] Initial cron runs complete successfully with `NOTIFICATION_DRY_RUN=true`.
+- [ ] `salon-flush-notification-outbox` calls `POST /api/v1/jobs/flushNotificationOutbox/run` every 5 minutes.
+- [ ] `salon-upcoming-booking-reminders` calls `POST /api/v1/jobs/sendUpcomingBookingReminders/run` every 15 minutes.
+- [ ] `salon-release-expired-booking-slots` calls `POST /api/v1/jobs/releaseExpiredBookingSlots/run` every 15 minutes.
+- [ ] `salon-waitlist-slot-open-notifications` calls `POST /api/v1/jobs/syncWaitlistSlotOpenNotifications/run` every 15 minutes.
+- [ ] Each external scheduler request sends `X-Job-Secret: <JOB_SECRET>`.
+- [ ] Initial scheduler runs complete successfully with `NOTIFICATION_DRY_RUN=true`.
 - [ ] Logs are reviewed for failed queries, missing env vars, duplicate sends, or unexpected retries.
 - [ ] If real sends are enabled, one controlled booking/contact/reminder/waitlist test is verified with approved recipients.
 
 Evidence:
 
 ```text
-Notification outbox cron log: Pending Render cron log review.
-Reminder cron log: Pending Render cron log review.
-Expired slot release cron log: Pending Render cron log review.
-Waitlist slot-open cron log: Pending Render cron log review.
+Notification outbox scheduler log: Pending external scheduler and Render backend log review.
+Reminder scheduler log: Pending external scheduler and Render backend log review.
+Expired slot release scheduler log: Pending external scheduler and Render backend log review.
+Waitlist slot-open scheduler log: Pending external scheduler and Render backend log review.
 Dry-run or real-send mode: Dry-run for both email and WhatsApp at launch unless intentionally changed later.
-Notes: Render cron definitions exist in render.yaml. Actual production cron runs/logs still need provider-console evidence from Render for all four cron services.
+Notes: Render cron definitions are intentionally not used. External scheduler setup and first-run logs still need provider-console evidence for all four jobs.
 ```
 
 ## 5. Vercel/frontend readiness
@@ -375,13 +376,13 @@ Launch should be approved only when all critical checks are complete or explicit
 | Local/CI tests                    | Passed locally                         | Personal Web Project - Billy Opiyo | `npm ci`, `npm ci --prefix backend`, `npm run test:phase9` passed. Latest Phase 9 run: root unit 11/11, backend 69/69. `npm run test:e2e` passed 22/22.                                                                                   |
 | Supabase migrations/RLS/Auth      | Pending manual confirmation            | Personal Web Project - Billy Opiyo | Project URL recorded. Migration/RLS/Auth redirect/admin bootstrap evidence still needs Supabase provider-console verification before GO.                                                                                                  |
 | Render web service                | Passed live HTTP/CORS checks           | Personal Web Project - Billy Opiyo | Live `/health` passed with `supabaseConfigured: true`; approved Vercel CORS origin passed; unexpected origin now returns typed HTTP 403 `cors_origin_not_allowed`.                                                                         |
-| Render cron jobs                  | Pending manual confirmation            | Personal Web Project - Billy Opiyo | Cron definitions exist in `render.yaml`; provider-console run logs not reviewed in this run.                                                                                                                                              |
+| External scheduled jobs           | Pending manual confirmation            | Personal Web Project - Billy Opiyo | Free external scheduler jobs must call the protected Render backend job endpoints with `X-Job-Secret`; provider-console run logs not reviewed in this run.                                                                                |
 | Vercel frontend config            | Passed live asset/config parity        | Personal Web Project - Billy Opiyo | Vercel URL returns HTTP 200. Live `client-config.js`, `JS/admin.js`, and `JS/render-api-adapter.js` match local SHA-256 hashes and contain the expected public Supabase/Render values.                                                     |
 | Production smoke tests            | Pending manual browser/data-flow smoke | Personal Web Project - Billy Opiyo | Local Playwright E2E passed; non-secret live HTTP/config/CORS checks passed after redeploy; full manual production public/admin workflow smoke still needs to be run and recorded.                                                         |
 | Notification mode                 | Approved dry-run                       | Personal Web Project - Billy Opiyo | Launch mode is dry-run for both email and WhatsApp. Real sends are not approved in this sign-off.                                                                                                                                         |
 | Data migration decision           | Approved Path B                        | Personal Web Project - Billy Opiyo | No Firebase production data/log migration; launch as new Supabase dataset.                                                                                                                                                                |
 | Firebase archive/removal decision | Deferred reference-only                | Personal Web Project - Billy Opiyo | Firebase files remain reference-only; no active browser Firebase SDK script loading found in public HTML and root workflow no longer uses Firebase deploy/test commands.                                                                  |
-| Final launch approval             | NO-GO pending manual evidence/smoke    | Personal Web Project - Billy Opiyo | Do not final-launch until Supabase migrations/RLS/Auth/admin bootstrap are confirmed, Render cron logs are reviewed, and full production manual smoke tests pass. Notifications remain intentionally dry-run.                             |
+| Final launch approval             | NO-GO pending manual evidence/smoke    | Personal Web Project - Billy Opiyo | Do not final-launch until Supabase migrations/RLS/Auth/admin bootstrap are confirmed, external scheduler/backend job logs are reviewed, and full production manual smoke tests pass. Notifications remain intentionally dry-run.           |
 
 Final decision:
 
@@ -390,7 +391,7 @@ GO / NO-GO: NO-GO for final launch at this checkpoint.
 Approved by: Personal Web Project - Billy Opiyo
 Date/time: 2026-06-09 follow-up validation
 Production commit/tag: 9abd031 feat(admin): add login telemetry and security notices
-Known deferred items: Supabase migration/RLS/Auth/admin bootstrap confirmation; Render cron logs; full live production manual smoke tests; keep notifications dry-run; Firebase cleanup deferred reference-only.
+Known deferred items: Supabase migration/RLS/Auth/admin bootstrap confirmation; external scheduler/backend job logs; full live production manual smoke tests; keep notifications dry-run; Firebase cleanup deferred reference-only.
 Rollback owner/path: Personal Web Project - Billy Opiyo; rollback by reverting to last known good Git commit/deployment in Render and Vercel if redeploy introduces regressions.
 ```
 
@@ -399,7 +400,7 @@ Rollback owner/path: Personal Web Project - Billy Opiyo; rollback by reverting t
 - [ ] Production backend is deployed and healthy on Render.
 - [ ] Supabase production schema, RLS, Auth redirects, and admin bootstrap are confirmed.
 - [ ] Vercel frontend uses only public production values.
-- [ ] Cron jobs run successfully.
+- [ ] External scheduled jobs run successfully.
 - [ ] Notification mode is intentionally chosen.
 - [ ] Core public and admin workflows pass smoke testing.
 - [ ] Data migration is complete or explicitly deferred.

@@ -16,14 +16,14 @@ The current Firebase Functions and browser JavaScript files are reference materi
 
 The restored project currently contains a Firebase-era implementation. These files should be reviewed as behavior references:
 
-| Legacy area | Files | Use as reference for |
-| --- | --- | --- |
-| Firebase Functions backend | `functions/index.js` | Booking lifecycle, waitlist workflows, admin callable operations, notifications, scheduled jobs, audit/security logging. |
-| Function config | `functions/client-config.js`, `functions/waitlist-action-messages.js` | Business naming, notification text, Cloudinary folder conventions, client-level defaults. |
-| Frontend public app | `public/JS/script.js` | Booking form behavior, public content rendering, client catalog behavior, review/contact flows. |
-| Admin frontend | `public/JS/admin.js` | Admin screens, realtime expectations, permissions, booking/status actions, content management, security dashboards. |
-| Client bootstrap scripts | `scripts/new-client.js` | White-label setup ideas and required client configuration fields. |
-| Old tests | `tests/`, `functions/__tests__/` | Expected behavior, edge cases, and regression scenarios. |
+| Legacy area                | Files                                                                 | Use as reference for                                                                                                     |
+| -------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Firebase Functions backend | `functions/index.js`                                                  | Booking lifecycle, waitlist workflows, admin callable operations, notifications, scheduled jobs, audit/security logging. |
+| Function config            | `functions/client-config.js`, `functions/waitlist-action-messages.js` | Business naming, notification text, Cloudinary folder conventions, client-level defaults.                                |
+| Frontend public app        | `public/JS/script.js`                                                 | Booking form behavior, public content rendering, client catalog behavior, review/contact flows.                          |
+| Admin frontend             | `public/JS/admin.js`                                                  | Admin screens, realtime expectations, permissions, booking/status actions, content management, security dashboards.      |
+| Client bootstrap scripts   | `scripts/new-client.js`                                               | White-label setup ideas and required client configuration fields.                                                        |
+| Old tests                  | `tests/`, `functions/__tests__/`                                      | Expected behavior, edge cases, and regression scenarios.                                                                 |
 
 Important: these files explain **what the system does**, not **how the new system should be implemented**.
 
@@ -171,15 +171,15 @@ backend/src/modules/bookings/
 
 ### Responsibilities
 
-| Layer | Responsibility |
-| --- | --- |
-| `routes` | HTTP paths, middleware composition, request method definitions. |
-| `controller` | Request parsing, response formatting, error handoff. |
-| `service` | Business workflow and transaction orchestration. |
-| `repository` | Supabase/Postgres reads and writes. |
-| `validators` | Input validation and normalization. |
-| `constants` | Status names, allowed values, domain constants. |
-| `tests` | Unit and integration coverage for the module. |
+| Layer        | Responsibility                                                  |
+| ------------ | --------------------------------------------------------------- |
+| `routes`     | HTTP paths, middleware composition, request method definitions. |
+| `controller` | Request parsing, response formatting, error handoff.            |
+| `service`    | Business workflow and transaction orchestration.                |
+| `repository` | Supabase/Postgres reads and writes.                             |
+| `validators` | Input validation and normalization.                             |
+| `constants`  | Status names, allowed values, domain constants.                 |
+| `tests`      | Unit and integration coverage for the module.                   |
 
 Business rules should live in services, not controllers.
 
@@ -187,20 +187,20 @@ Business rules should live in services, not controllers.
 
 ## Firebase-to-New-Architecture Mapping
 
-| Firebase-era concept | New Supabase/Render/Vercel concept |
-| --- | --- |
-| Firebase Auth | Supabase Auth. |
-| Firestore collections | Supabase Postgres tables. |
-| Firestore document IDs | UUID primary keys or deterministic unique keys in Postgres. |
-| Firestore security rules | Supabase RLS policies, database constraints, and Render authorization middleware. |
-| Firebase callable functions | Render REST API endpoints. |
-| Firestore triggers | Render service-layer actions, Supabase triggers, Postgres functions, or scheduled jobs depending on the workflow. |
-| Firebase scheduled functions | Render cron jobs or background workers. |
-| Firebase Functions secrets | Render environment variables. |
-| Firebase web config | Supabase public URL/anon key and Render API URL. |
-| Firestore realtime listeners | Supabase Realtime channels where appropriate. |
-| Firebase Hosting | Vercel deployment. |
-| Firebase emulator tests | Supabase local tests, backend integration tests, and frontend E2E tests. |
+| Firebase-era concept         | New Supabase/Render/Vercel concept                                                                                |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Firebase Auth                | Supabase Auth.                                                                                                    |
+| Firestore collections        | Supabase Postgres tables.                                                                                         |
+| Firestore document IDs       | UUID primary keys or deterministic unique keys in Postgres.                                                       |
+| Firestore security rules     | Supabase RLS policies, database constraints, and Render authorization middleware.                                 |
+| Firebase callable functions  | Render REST API endpoints.                                                                                        |
+| Firestore triggers           | Render service-layer actions, Supabase triggers, Postgres functions, or scheduled jobs depending on the workflow. |
+| Firebase scheduled functions | Protected Render job endpoints triggered by a free external scheduler, or background workers.                     |
+| Firebase Functions secrets   | Render environment variables.                                                                                     |
+| Firebase web config          | Supabase public URL/anon key and Render API URL.                                                                  |
+| Firestore realtime listeners | Supabase Realtime channels where appropriate.                                                                     |
+| Firebase Hosting             | Vercel deployment.                                                                                                |
+| Firebase emulator tests      | Supabase local tests, backend integration tests, and frontend E2E tests.                                          |
 
 ---
 
@@ -539,12 +539,12 @@ POST   /api/v1/account/security-change
 
 ### Job endpoints or workers
 
-Depending on the Render setup, jobs can run as cron commands or protected HTTP endpoints.
+Jobs should run through protected HTTP endpoints triggered by a free external scheduler such as cron-job.org. This avoids paid Render cron services while keeping service-role work inside the Render backend.
 
 ```text
 releaseExpiredBookingSlots
 sendUpcomingBookingReminders
-syncWaitlistPositions
+syncWaitlistSlotOpenNotifications
 flushNotificationOutbox
 ```
 
@@ -613,7 +613,7 @@ Required behavior:
 
 Required behavior:
 
-1. Scheduled Render job finds occupied slots with `starts_at` older than configured grace period.
+1. Protected scheduled job endpoint finds occupied slots with `starts_at` older than configured grace period.
 2. For each slot, transactionally inspect linked booking.
 3. Convert `pending` bookings to `expired`.
 4. Convert `confirmed` past bookings to `no_show` if the business rule requires it.
@@ -645,11 +645,11 @@ booking_notifications
 
 ### Providers
 
-| Provider | Use |
-| --- | --- |
-| Resend | Booking emails, contact notifications, admin alerts. |
+| Provider           | Use                                                      |
+| ------------------ | -------------------------------------------------------- |
+| Resend             | Booking emails, contact notifications, admin alerts.     |
 | WhatsApp Cloud API | Booking confirmation, reminders, waitlist notifications. |
-| Cloudinary | Signed upload generation and managed media workflows. |
+| Cloudinary         | Signed upload generation and managed media workflows.    |
 
 ### Notification rules
 
@@ -842,7 +842,7 @@ Success criteria:
 
 ## Phase 5: Notifications and Scheduled Jobs
 
-Goal: replace Firebase triggers/scheduled functions with Render jobs and an outbox pattern.
+Goal: replace Firebase triggers/scheduled functions with protected Render job endpoints, a free external scheduler, and an outbox pattern.
 
 Tasks:
 
@@ -862,7 +862,7 @@ Deliverables:
 - Notification module.
 - Resend integration.
 - WhatsApp integration.
-- Render cron/job definitions.
+- Protected scheduled job endpoints and external scheduler setup notes.
 - Tests for notification queue behavior.
 
 Success criteria:
@@ -1008,7 +1008,7 @@ Tasks:
 - Apply Supabase migrations to the production project.
 - Bootstrap the initial production `super_admin`.
 - Deploy the Render Blueprint and confirm the web service is healthy.
-- Configure and verify Render cron jobs.
+- Configure and verify the free external scheduler jobs that call protected Render job endpoints.
 - Configure the Vercel frontend with production public Supabase and Render values.
 - Verify Render-only secrets are not exposed in browser/Vercel public config.
 - Run production smoke checks for booking, waitlist, admin, content, contact, notifications, and security workflows.
@@ -1027,7 +1027,7 @@ Deliverables:
 
 Success criteria:
 
-- Render backend and cron jobs are healthy in production.
+- Render backend and externally triggered scheduled jobs are healthy in production.
 - Supabase production schema, RLS, Auth redirects, and admin bootstrap are verified.
 - Vercel frontend uses only public production configuration.
 - Core customer and admin workflows pass smoke testing.

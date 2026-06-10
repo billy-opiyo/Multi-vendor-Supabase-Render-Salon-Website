@@ -13,7 +13,7 @@ For the complete post-Phase 9 launch gate, use [`docs/production-signoff.md`](./
 | Firestore bookings/slots/waitlist               | `public.bookings`, `public.booking_slots`, `public.waitlist_entries` | Schema and backend workflows exist; production data migration still manual |
 | Firestore reviews/contact/content/gallery/blogs | Supabase public content tables + Render content endpoints            | Schema/backend coverage exists; production data migration still manual     |
 | Firestore security/audit/timeline data          | Supabase security/activity/audit tables                              | Schema/backend coverage exists; production data migration still manual     |
-| Firebase Functions scheduled/callable workflows | Render web service + Render cron jobs                                | Active architecture                                                        |
+| Firebase Functions scheduled/callable workflows | Render web service + protected scheduled-job HTTP endpoints           | Active architecture                                                        |
 | Firebase Hosting                                | Vercel static frontend hosting                                       | Active architecture target                                                 |
 
 ## Supabase migration process
@@ -66,7 +66,7 @@ Reference-only files still present and candidates for archive/removal after manu
 
 Suggested final cleanup sequence:
 
-1. Confirm Supabase migrations, Render backend, Render cron jobs, and Vercel frontend are live.
+1. Confirm Supabase migrations, Render backend, external scheduled jobs, and Vercel frontend are live.
 2. Confirm booking, waitlist, admin, content, notification, and security smoke checks pass in staging.
 3. Archive Firebase reference files in a separate branch/tag if historical behavior needs preservation.
 4. Remove Firebase config/rules/functions/runtime test files from the active branch.
@@ -79,7 +79,7 @@ Use this compact checklist as the migration/cleanup portion of the full producti
 - [ ] Supabase migrations applied to production.
 - [ ] Initial production super admin created in `public.admin_users`.
 - [ ] Render Blueprint applied and web service healthy.
-- [ ] Render cron jobs enabled and logging successful dry-run or real runs.
+- [ ] External scheduled jobs are enabled and logging successful dry-run or real runs.
 - [ ] Vercel frontend configured with public Supabase/Render values.
 - [ ] CORS allows only approved Vercel/custom domains.
 - [ ] Notification providers verified in dry-run, then enabled intentionally.

@@ -73,14 +73,22 @@ describe("Phase 9 Supabase/Render/Vercel architecture validation", () => {
 		}
 	})
 
-	it("defines Render web and cron services instead of Firebase deployment targets", () => {
+	it("defines a Render web service and protected external scheduler endpoints instead of Firebase deployment targets", () => {
 		const renderBlueprint = readText("render.yaml")
+		const jobRoutes = readText("backend/src/modules/jobs/job.routes.js")
+		const scheduledJobsDocs = readText("docs/scheduled-jobs.md")
 
 		expect(renderBlueprint).toMatch(/type:\s*web/)
 		expect(renderBlueprint).toMatch(/rootDir:\s*backend/)
 		expect(renderBlueprint).toMatch(/healthCheckPath:\s*\/health/)
-		expect(renderBlueprint).toMatch(/type:\s*cron/)
+		expect(renderBlueprint).not.toMatch(/type:\s*cron/)
 		expect(renderBlueprint).toContain("SUPABASE_SERVICE_ROLE_KEY")
+		expect(renderBlueprint).toContain("JOB_SECRET")
+		expect(jobRoutes).toContain("/api/v1/jobs/:jobName/run")
+		expect(scheduledJobsDocs).toContain("X-Job-Secret")
+		expect(scheduledJobsDocs).toContain(
+			"/api/v1/jobs/flushNotificationOutbox/run",
+		)
 		expect(renderBlueprint).not.toMatch(/FIREBASE|firestore|firebase/i)
 	})
 

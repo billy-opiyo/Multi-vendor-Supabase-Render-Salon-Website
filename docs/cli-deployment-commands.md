@@ -5,7 +5,7 @@ This guide is the project-specific command reference for deploying the **Multi-v
 Current architecture:
 
 - **Supabase**: database, auth, RLS, migrations, optional storage/realtime.
-- **Render**: trusted backend API, service-role workflows, cron jobs, notifications, Cloudinary signing.
+- **Render**: trusted backend API, service-role workflows, protected job execution endpoints, notifications, Cloudinary signing.
 - **Vercel**: static public/admin frontend delivery.
 
 > Keep dashboards available for one-time account setup, secret creation, billing, DNS, and emergency debugging. Use CLI for repeatable deploy workflows.
@@ -81,25 +81,21 @@ Use dashboard/CLI environment variable tools for secrets instead.
 
 ## 2. Render CLI
 
-Render runs this project’s backend API and scheduled jobs from the root [`render.yaml`](../render.yaml) Blueprint.
+Render runs this project’s backend API from the root [`render.yaml`](../render.yaml) Blueprint. Paid Render cron services are intentionally not used; scheduled jobs are triggered by a free external scheduler calling protected backend HTTP endpoints.
 
 Expected Render service names from this project:
 
 ```txt
 salon-render-backend
-salon-flush-notification-outbox
-salon-upcoming-booking-reminders
-salon-release-expired-booking-slots
-salon-waitlist-slot-open-notifications
 ```
 
-For normal app deploys, use the **web service**:
+For app deploys, use the **web service**:
 
 ```txt
 salon-render-backend
 ```
 
-The other services are cron jobs.
+External scheduled jobs are configured separately in cron-job.org or a similar no-card scheduler. See [`docs/scheduled-jobs.md`](./scheduled-jobs.md).
 
 ### Check Render CLI installation
 
@@ -185,7 +181,6 @@ Run this after editing:
 
 - service names
 - build/start commands
-- cron schedules
 - environment variable definitions
 - root directories
 

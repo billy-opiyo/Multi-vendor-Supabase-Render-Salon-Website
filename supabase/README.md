@@ -5,7 +5,7 @@ This folder contains the Phase 1 Supabase foundation for the Firebase-to-Supabas
 The Firebase-era implementation remains reference-only. New runtime behavior should use:
 
 - **Supabase** for Postgres, Auth, RLS, migrations, optional Storage, and Realtime.
-- **Render** for trusted service-role workflows, notifications, scheduled jobs, Cloudinary signing, and privileged admin actions.
+- **Render** for trusted service-role workflows, notifications, protected job execution endpoints, Cloudinary signing, and privileged admin actions.
 - **Vercel** for public/admin frontend delivery.
 
 ## Folder structure
@@ -98,7 +98,7 @@ Supabase Storage remains available for future use, but no active bucket policy i
 
 - The Render backend now exists under `backend/` and is covered by backend tests.
 - Booking, waitlist, content, notification, security, and admin workflows are represented by Render modules and tests.
-- Render cron jobs are defined in `render.yaml` for notification outbox flushing, reminders, expired slot release, and waitlist slot-open notifications.
+- Scheduled jobs are triggered by a free external scheduler through protected Render backend HTTP endpoints; see `docs/scheduled-jobs.md`.
 - RLS policies remain the Supabase authorization foundation and should be validated against a real Supabase project before production launch.
 - Admin bootstrap still requires a controlled manual step once Supabase Auth users exist: create the first active `super_admin` row in `public.admin_users` using a trusted SQL/admin process.
 - See `docs/deployment.md` and `docs/migration-cleanup.md` for Phase 9 deployment and cleanup checklists.

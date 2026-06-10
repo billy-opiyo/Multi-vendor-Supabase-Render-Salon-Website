@@ -3,7 +3,7 @@
 This project targets the Phase 9 **Supabase + Render + Vercel** architecture:
 
 - **Supabase** owns Postgres, Auth, RLS, migrations, optional storage, and realtime.
-- **Render** runs the trusted backend API, service-role workflows, scheduled jobs, notification delivery, and Cloudinary signing.
+- **Render** runs the trusted backend API, service-role workflows, protected job execution endpoints, notification delivery, and Cloudinary signing.
 - **Vercel** serves the public/admin frontend with only public configuration values.
 
 Firebase files in the repository are reference-only until final archive/removal. They are not active deployment targets.
@@ -54,7 +54,7 @@ Supabase checklist:
 
 ## Backend on Render
 
-The root `render.yaml` file defines the backend web service and cron jobs as a Render Blueprint.
+The root `render.yaml` file defines only the backend web service as a Render Blueprint. Paid Render cron services are intentionally not used; free external schedulers trigger protected backend job endpoints instead.
 
 ### Web service
 
@@ -69,16 +69,25 @@ The root `render.yaml` file defines the backend web service and cron jobs as a R
 
 Render injects `PORT` automatically. Locally, the backend defaults to `4000` through `backend/src/config/env.js`.
 
-### Cron services
+### Free external scheduled jobs
 
-`render.yaml` also defines these scheduled jobs:
+Use a no-card external scheduler such as [cron-job.org](https://cron-job.org/) to call the backend endpoint below. The endpoint reuses the same Node job handlers that were previously invoked by Render cron services.
 
-| Render service name                      | Command                             | Schedule         |
-| ---------------------------------------- | ----------------------------------- | ---------------- |
-| `salon-flush-notification-outbox`        | `npm run job:notifications`         | Every 5 minutes  |
-| `salon-upcoming-booking-reminders`       | `npm run job:reminders`             | Hourly           |
-| `salon-release-expired-booking-slots`    | `npm run job:release-expired-slots` | Every 30 minutes |
-| `salon-waitlist-slot-open-notifications` | `npm run job:waitlist-slot-open`    | Every 15 minutes |
+```text
+POST https://<render-service>/api/v1/jobs/:jobName/run
+X-Job-Secret: <JOB_SECRET>
+```
+
+Supported secret headers are `X-Job-Secret`, `X-Cron-Secret`, or `Authorization: Bearer <JOB_SECRET>`. Do not put `JOB_SECRET` in browser/frontend config.
+
+| Scheduler job name                       | Backend job name                         | Schedule         |
+| ---------------------------------------- | ---------------------------------------- | ---------------- |
+| `salon-flush-notification-outbox`        | `flushNotificationOutbox`                | Every 5 minutes  |
+| `salon-upcoming-booking-reminders`       | `sendUpcomingBookingReminders`           | Every 15 minutes |
+| `salon-release-expired-booking-slots`    | `releaseExpiredBookingSlots`             | Every 15 minutes |
+| `salon-waitlist-slot-open-notifications` | `syncWaitlistSlotOpenNotifications`      | Every 15 minutes |
+
+See [`docs/scheduled-jobs.md`](./scheduled-jobs.md) for the full cron-job.org setup checklist and copy-paste URLs.
 
 ### Required Render environment variables
 
@@ -99,9 +108,10 @@ Render injects `PORT` automatically. Locally, the backend defaults to `4000` thr
 | `CLOUDINARY_API_KEY`               | Needed for signed uploads      | Server-side Cloudinary setting.                                                                                                                          |
 | `CLOUDINARY_API_SECRET`            | Needed for signed uploads      | Server-only secret.                                                                                                                                      |
 | `CLOUDINARY_UPLOAD_FOLDER`         | Recommended                    | Default Cloudinary folder path, for example `royal-braids/gallery`. Cloudinary creates it on first upload. This is separate from any upload preset name. |
-| `JOB_SECRET`                       | Optional                       | Reserved for protected job endpoints/scripts if enabled.                                                                                                 |
-| `UPCOMING_REMINDER_WINDOW_MINUTES` | Yes                            | Defaults to `1440` in Blueprint.                                                                                                                         |
-| `EXPIRED_SLOT_GRACE_MINUTES`       | Yes                            | Defaults to `60` in Blueprint.                                                                                                                           |
+| `JOB_SECRET`                       | Yes for scheduled jobs         | Long random secret required by `/api/v1/jobs/:jobName/run`. Store only on Render and in the external scheduler.                                          |
+| `UPCOMING_REMINDER_LEAD_TIME_MINUTES` | Yes                         | Defaults to `120` in Blueprint.                                                                                                                          |
+| `UPCOMING_REMINDER_WINDOW_MINUTES` | Yes                            | Defaults to `15` in Blueprint.                                                                                                                           |
+| `EXPIRED_SLOT_GRACE_MINUTES`       | Yes                            | Defaults to `120` in Blueprint.                                                                                                                          |
 
 ## Local backend development
 
@@ -151,6 +161,6 @@ After deployment:
 5. Confirm admin-only endpoints require an active `admin_users` row with the required permission.
 6. Confirm public booking/contact/review submissions use Render endpoints or Supabase/RLS-approved public flows.
 7. Run provider checks with `NOTIFICATION_DRY_RUN=true` first, then enable real Resend/WhatsApp sends after verifying templates and recipients.
-8. Confirm Render cron job logs show successful runs for notification outbox, reminders, expired slot release, and waitlist slot-open notifications.
+8. Confirm external scheduler run logs and Render backend logs show successful runs for notification outbox, reminders, expired slot release, and waitlist slot-open notifications.
 
 Use the full sign-off checklist in [`docs/production-signoff.md`](./production-signoff.md) to capture launch evidence, migration decisions, notification mode, Firebase cleanup decisions, and final go/no-go approval.
