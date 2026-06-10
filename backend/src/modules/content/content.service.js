@@ -22,6 +22,179 @@ function slugify(value, fallback = "item") {
 	return slug || fallback
 }
 
+const ADMIN_CLOUDINARY_UPLOAD_PURPOSES = new Set([
+	"admin-gallery",
+	"admin-blog",
+])
+const PUBLIC_CLOUDINARY_UPLOAD_PURPOSE_FOLDERS = Object.freeze({
+	"booking-inspiration": "booking-inspiration",
+	"profile-avatar": "profile-avatars",
+	"review-photo": "review-photos",
+})
+const PUBLIC_CLOUDINARY_MAX_IMAGE_BYTES = 5 * 1024 * 1024
+
+function normalizeCloudinaryPath(value = "") {
+	return String(value || "")
+		.split("/")
+		.map((part) => part.trim())
+		.filter((part) => part && part !== "." && part !== "..")
+		.join("/")
+}
+
+function joinCloudinaryPath(...parts) {
+	return normalizeCloudinaryPath(parts.filter(Boolean).join("/"))
+}
+
+function normalizeUploadPurpose(purpose = "admin-gallery") {
+	return String(purpose || "admin-gallery")
+		.trim()
+		.toLowerCase()
+}
+
+function isAdminCloudinaryUploadPurpose(purpose) {
+	return ADMIN_CLOUDINARY_UPLOAD_PURPOSES.has(normalizeUploadPurpose(purpose))
+}
+
+function uniqueTags(tags = []) {
+	return [
+		...new Set(tags.map((tag) => String(tag || "").trim()).filter(Boolean)),
+	]
+}
+
+function normalizeUploadActor(actor = null) {
+	if (actor?.admin || actor?.user) {
+		return {
+			admin: actor.admin || null,
+			user: actor.user || null,
+		}
+	}
+
+	if (actor?.user_id) {
+		return {
+			admin: actor,
+			user: null,
+		}
+	}
+
+	if (actor?.id) {
+		return {
+			admin: null,
+			user: actor,
+		}
+	}
+
+	return {
+		admin: null,
+		user: null,
+	}
+}
+
+function getUploadActorUserId(actorContext = {}) {
+	return actorContext.admin?.user_id || actorContext.user?.id || null
+}
+
+function assertCloudinaryUploadAllowed(actorContext, payload) {
+	const purpose = normalizeUploadPurpose(payload.purpose)
+
+	if (isAdminCloudinaryUploadPurpose(purpose) && !actorContext.admin) {
+		throw new ApiError(
+			403,
+			"admin_upload_purpose_required",
+			"Admin content uploads require active content admin access.",
+		)
+	}
+
+	if (!isAdminCloudinaryUploadPurpose(purpose)) {
+		if (payload.resource_type && payload.resource_type !== "image") {
+			throw new ApiError(
+				400,
+				"public_upload_resource_type_invalid",
+				"Public uploads only support image files.",
+			)
+		}
+
+		if (
+			payload.content_type &&
+			!String(payload.content_type).toLowerCase().startsWith("image/")
+		) {
+			throw new ApiError(
+				400,
+				"public_upload_content_type_invalid",
+				"Public uploads only support image files.",
+			)
+		}
+
+		if (
+			payload.size_bytes &&
+			Number(payload.size_bytes) > PUBLIC_CLOUDINARY_MAX_IMAGE_BYTES
+		) {
+			throw new ApiError(
+				413,
+				"public_upload_file_too_large",
+				"Image uploads must be 5MB or less.",
+			)
+		}
+	}
+}
+
+function buildCloudinaryUploadOptions(payload, siteSettings, actorContext) {
+	const purpose = normalizeUploadPurpose(payload.purpose)
+	const configuredFolder = normalizeCloudinaryPath(
+		siteSettings?.cloudinary_folder || env.CLOUDINARY_UPLOAD_FOLDER || "",
+	)
+	const requestedFolder = normalizeCloudinaryPath(payload.folder || "")
+	const baseFolder = configuredFolder || requestedFolder || "public/uploads"
+	const isAdminPurpose = isAdminCloudinaryUploadPurpose(purpose)
+	const folder = isAdminPurpose
+		? requestedFolder || configuredFolder || undefined
+		: joinCloudinaryPath(
+				baseFolder,
+				PUBLIC_CLOUDINARY_UPLOAD_PURPOSE_FOLDERS[purpose],
+			)
+	const actorUserId = getUploadActorUserId(actorContext)
+	const tags = isAdminPurpose
+		? uniqueTags([
+				...(payload.tags || []),
+				purpose === "admin-blog" ? "blog" : "gallery",
+				"admin_upload",
+			])
+		: uniqueTags([...(payload.tags || []), "public_upload", purpose])
+
+	return {
+		...payload,
+		folder,
+		public_id: isAdminPurpose ? payload.public_id : undefined,
+		resource_type: isAdminPurpose ? payload.resource_type || "image" : "image",
+		tags,
+		context: {
+			...(payload.context || {}),
+			tenant_id: payload.tenant_id || "global",
+			purpose,
+			actor_type: actorContext.admin
+				? "admin"
+				: actorContext.user
+					? "authenticated"
+					: "anonymous",
+			...(actorUserId ? { user_id: actorUserId } : {}),
+		},
+	}
+}
+
+function flattenCloudinarySignature(signature) {
+	return {
+		cloudName: signature.cloudName,
+		apiKey: signature.apiKey,
+		signature: signature.signature,
+		timestamp: signature.timestamp,
+		folder: signature.folder,
+		publicId: signature.publicId,
+		resourceType: signature.resourceType,
+		uploadUrl: signature.uploadUrl,
+		params: signature.params,
+		signedUpload: signature,
+	}
+}
+
 function requireExisting(row, code, message) {
 	if (!row) {
 		throw new ApiError(404, code, message)
@@ -102,8 +275,24 @@ function createContentService({
 	cloudinarySigner,
 	now = () => new Date(),
 } = {}) {
+	let lazyContentRepository = contentRepository || null
+	function getContentRepository() {
+		if (!lazyContentRepository) {
+			lazyContentRepository = createContentRepository(getSupabaseAdmin())
+		}
+
+		return lazyContentRepository
+	}
 	const repository =
-		contentRepository || createContentRepository(getSupabaseAdmin())
+		contentRepository ||
+		new Proxy(
+			{},
+			{
+				get(_target, property) {
+					return getContentRepository()[property]
+				},
+			},
+		)
 	const notifications = notificationService
 	const signer = cloudinarySigner || createCloudinarySigner()
 
@@ -654,53 +843,62 @@ function createContentService({
 		return deleted
 	}
 
-	async function signCloudinaryUpload(actorAdmin, payload) {
+	async function signCloudinaryUpload(actor, payload) {
+		const actorContext = normalizeUploadActor(actor)
+		assertCloudinaryUploadAllowed(actorContext, payload)
+
 		const siteSettings = await repository.findSiteSettingsByTenant(
 			payload.tenant_id,
 		)
-		const folder =
-			payload.folder ||
-			siteSettings?.cloudinary_folder ||
-			env.CLOUDINARY_UPLOAD_FOLDER
+		const purpose = normalizeUploadPurpose(payload.purpose)
+		const uploadOptions = buildCloudinaryUploadOptions(
+			payload,
+			siteSettings,
+			actorContext,
+		)
 
-		const signature = signer.signUpload({
-			...payload,
-			folder,
-			context: {
-				...(payload.context || {}),
-				tenant_id: payload.tenant_id || "global",
-				user_id: actorAdmin.user_id,
-			},
-		})
+		const signature = signer.signUpload(uploadOptions)
+		const actorUserId = getUploadActorUserId(actorContext)
 
 		const uploadRecord = await repository.createFileUpload({
 			tenant_id: payload.tenant_id || null,
-			user_id: actorAdmin.user_id,
+			user_id: actorUserId,
 			provider: "cloudinary",
 			bucket: signature.cloudName,
-			object_path: signature.publicId,
+			object_path: signature.publicId || signature.folder || null,
+			content_type: payload.content_type || null,
+			size_bytes: payload.size_bytes || null,
 			status: "signed",
 			metadata: {
 				...metadataWithSource(payload.metadata),
+				purpose,
 				folder: signature.folder,
 				resource_type: signature.resourceType,
-				tags: payload.tags || [],
+				tags: uploadOptions.tags || [],
+				file_name: payload.file_name || null,
+				actor_type: actorContext.admin
+					? "admin"
+					: actorContext.user
+						? "authenticated"
+						: "anonymous",
 			},
 		})
 
-		await audit(
-			actorAdmin,
-			"upload.cloudinary_signed",
-			"file_upload",
-			uploadRecord,
-			{
-				before: null,
-				after: uploadRecord,
-			},
-		)
+		if (actorContext.admin) {
+			await audit(
+				actorContext.admin,
+				"upload.cloudinary_signed",
+				"file_upload",
+				uploadRecord,
+				{
+					before: null,
+					after: uploadRecord,
+				},
+			)
+		}
 
 		return {
-			signature,
+			...flattenCloudinarySignature(signature),
 			upload: uploadRecord,
 		}
 	}

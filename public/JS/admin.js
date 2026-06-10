@@ -6276,7 +6276,82 @@ function renderAdminGallery(docs) {
 		.join("")
 }
 
-async function uploadImageToCloudinary(file) {
+function normalizeCloudinarySignatureResponse(signResponse = {}) {
+	const payload = signResponse?.data || signResponse || {}
+	if (payload.uploadUrl) return payload
+	if (payload.signature?.uploadUrl) return payload.signature
+	if (payload.signedUpload?.uploadUrl) return payload.signedUpload
+	return payload
+}
+
+function serializeCloudinarySignedParam(key, value) {
+	if (value === undefined || value === null || value === "") return ""
+	if (key === "tags" && Array.isArray(value)) {
+		return value
+			.map((tag) => String(tag || "").trim())
+			.filter(Boolean)
+			.join(",")
+	}
+	if (
+		key === "context" &&
+		value &&
+		typeof value === "object" &&
+		!Array.isArray(value)
+	) {
+		return Object.entries(value)
+			.filter(
+				([_contextKey, contextValue]) =>
+					contextValue !== undefined &&
+					contextValue !== null &&
+					contextValue !== "",
+			)
+			.map(
+				([contextKey, contextValue]) => `${contextKey}=${String(contextValue)}`,
+			)
+			.join("|")
+	}
+	if (Array.isArray(value)) {
+		return value
+			.map((item) => String(item || "").trim())
+			.filter(Boolean)
+			.join(",")
+	}
+	return String(value)
+}
+
+function appendCloudinarySignedParams(body, signatureData = {}) {
+	const signedParams =
+		signatureData.params && typeof signatureData.params === "object"
+			? signatureData.params
+			: {
+					timestamp: signatureData.timestamp,
+					folder: signatureData.folder || clientCloudinaryFolder,
+					public_id: signatureData.publicId || signatureData.public_id,
+					upload_preset:
+						signatureData.uploadPreset || signatureData.upload_preset,
+					eager: signatureData.eager,
+					tags: signatureData.tags,
+					context: signatureData.context,
+					api_key: signatureData.apiKey || signatureData.api_key,
+					signature: signatureData.signature,
+				}
+
+	Object.entries(signedParams).forEach(([key, value]) => {
+		const serializedValue = serializeCloudinarySignedParam(key, value)
+		if (!serializedValue) return
+		body.append(key, serializedValue)
+	})
+
+	const apiKey = signatureData.apiKey || signatureData.api_key
+	if (!signedParams.api_key && apiKey) {
+		body.append("api_key", apiKey)
+	}
+	if (!signedParams.signature && signatureData.signature) {
+		body.append("signature", signatureData.signature)
+	}
+}
+
+async function uploadImageToCloudinary(file, options = {}) {
 	if (!file) return ""
 	if (
 		!appServicesReady ||
@@ -6290,26 +6365,34 @@ async function uploadImageToCloudinary(file) {
 		"createCloudinarySignedUpload",
 	)
 	const signResponse = await signUploadCallable({
+		purpose: options.purpose || "admin-gallery",
 		folder: clientCloudinaryFolder,
-		tags: "admin_upload,gallery",
+		tags: options.tags || ["admin_upload", "gallery"],
+		context: {
+			page: "admin",
+			...(options.context || {}),
+		},
+		fileName: file.name || "",
+		contentType: file.type || "image/*",
+		sizeBytes: file.size || 0,
 	})
-	const signatureData = signResponse?.data || {}
+	const signatureData = normalizeCloudinarySignatureResponse(signResponse)
+	const signedParams =
+		signatureData.params && typeof signatureData.params === "object"
+			? signatureData.params
+			: {}
 
 	if (
 		!signatureData.uploadUrl ||
-		!signatureData.apiKey ||
-		!signatureData.signature
+		!(signatureData.apiKey || signatureData.api_key || signedParams.api_key) ||
+		!(signatureData.signature || signedParams.signature)
 	) {
 		throw new Error("Failed to initialize secure Cloudinary upload")
 	}
 
 	const body = new FormData()
 	body.append("file", file)
-	body.append("api_key", signatureData.apiKey)
-	body.append("timestamp", String(signatureData.timestamp || ""))
-	body.append("signature", signatureData.signature)
-	body.append("folder", signatureData.folder || clientCloudinaryFolder)
-	if (signatureData.tags) body.append("tags", signatureData.tags)
+	appendCloudinarySignedParams(body, signatureData)
 
 	const response = await fetch(signatureData.uploadUrl, {
 		method: "POST",
@@ -6317,7 +6400,15 @@ async function uploadImageToCloudinary(file) {
 	})
 
 	if (!response.ok) {
-		throw new Error("Failed to upload image to Cloudinary")
+		let cloudinaryError = ""
+		try {
+			const errorPayload = await response.json()
+			cloudinaryError =
+				errorPayload?.error?.message || errorPayload?.message || ""
+		} catch (_error) {
+			cloudinaryError = await response.text().catch(() => "")
+		}
+		throw new Error(cloudinaryError || "Failed to upload image to Cloudinary")
 	}
 
 	const result = await response.json()
@@ -6429,10 +6520,18 @@ async function saveGalleryItem(event) {
 		let beforeImageUrl = currentItem?.beforeImageUrl || ""
 
 		if (mainImageFile) {
-			imageUrl = await uploadImageToCloudinary(mainImageFile)
+			imageUrl = await uploadImageToCloudinary(mainImageFile, {
+				purpose: "admin-gallery",
+				tags: ["admin_upload", "gallery", "gallery_after"],
+				context: { section: "gallery", image_role: "after" },
+			})
 		}
 		if (beforeImageFile) {
-			beforeImageUrl = await uploadImageToCloudinary(beforeImageFile)
+			beforeImageUrl = await uploadImageToCloudinary(beforeImageFile, {
+				purpose: "admin-gallery",
+				tags: ["admin_upload", "gallery", "gallery_before"],
+				context: { section: "gallery", image_role: "before" },
+			})
 		}
 
 		const payload = {
@@ -6572,7 +6671,11 @@ async function saveBlogItem(event) {
 
 		let imageUrl = currentItem?.imageUrl || ""
 		if (imageFile) {
-			imageUrl = await uploadImageToCloudinary(imageFile)
+			imageUrl = await uploadImageToCloudinary(imageFile, {
+				purpose: "admin-blog",
+				tags: ["admin_upload", "blog"],
+				context: { section: "blog" },
+			})
 		}
 
 		const payload = {

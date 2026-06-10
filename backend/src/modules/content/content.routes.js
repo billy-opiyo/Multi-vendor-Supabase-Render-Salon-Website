@@ -15,6 +15,32 @@ const requireContentAdmin = [
 	requireAuth,
 	requireAdmin(CONTENT_ADMIN_PERMISSION),
 ]
+const ADMIN_CLOUDINARY_UPLOAD_PURPOSES = new Set([
+	"admin-gallery",
+	"admin-blog",
+])
+
+function requireAdminForCloudinaryUploadPurpose(req, res, next) {
+	const purpose = String(
+		req.body?.purpose || req.body?.uploadPurpose || "admin-gallery",
+	)
+		.trim()
+		.toLowerCase()
+
+	if (!ADMIN_CLOUDINARY_UPLOAD_PURPOSES.has(purpose)) {
+		next()
+		return
+	}
+
+	requireAdmin(CONTENT_ADMIN_PERMISSION)(req, res, next)
+}
+
+const cloudinaryUploadSigningCooldown = rateLimit({
+	action: "cloudinary_upload_sign",
+	limit: 30,
+	windowMs: 15 * 60 * 1000,
+	lockMs: 15 * 60 * 1000,
+})
 const reviewSubmissionCooldown = rateLimit({
 	action: "review",
 	limit: 1,
@@ -228,7 +254,9 @@ router.delete(
 
 router.post(
 	"/api/v1/uploads/cloudinary/sign",
-	...requireContentAdmin,
+	optionalAuth,
+	requireAdminForCloudinaryUploadPurpose,
+	cloudinaryUploadSigningCooldown,
 	contentController.signCloudinaryUpload,
 )
 

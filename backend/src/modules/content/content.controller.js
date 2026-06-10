@@ -556,7 +556,7 @@ const signCloudinaryUpload = asyncHandler(async (req, res) => {
 		"Invalid Cloudinary signing payload.",
 	)
 	const result = await createContentService().signCloudinaryUpload(
-		req.admin,
+		{ admin: req.admin || null, user: req.auth?.user || null },
 		payload,
 	)
 	ok(res, result, 201)

@@ -19,6 +19,13 @@ const FILE_UPLOAD_STATUS_VALUES = [
 	"failed",
 ]
 const CLOUDINARY_RESOURCE_TYPES = ["image", "video", "raw", "auto"]
+const CLOUDINARY_UPLOAD_PURPOSES = [
+	"admin-gallery",
+	"admin-blog",
+	"booking-inspiration",
+	"review-photo",
+	"profile-avatar",
+]
 
 const DEFAULT_CONTENT_LIMIT = 50
 const MAX_CONTENT_LIMIT = 200
@@ -28,6 +35,7 @@ const CONTACT_RATE_LIMIT_COOLDOWN_MS = 60 * 1000
 module.exports = {
 	BLOG_STATUS_VALUES,
 	CLOUDINARY_RESOURCE_TYPES,
+	CLOUDINARY_UPLOAD_PURPOSES,
 	CONTACT_MESSAGE_STATUS_VALUES,
 	CONTACT_RATE_LIMIT_COOLDOWN_MS,
 	CONTENT_ADMIN_PERMISSION,

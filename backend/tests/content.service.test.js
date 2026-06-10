@@ -1,6 +1,9 @@
 process.env.NODE_ENV = "test"
 
-const { createContentService, slugify } = require("../src/modules/content/content.service")
+const {
+	createContentService,
+	slugify,
+} = require("../src/modules/content/content.service")
 
 const actorAdmin = {
 	id: "admin-row-1",
@@ -167,7 +170,10 @@ describe("content service", () => {
 	it("queues contact message notifications using site settings", async () => {
 		const contentRepository = createRepository()
 		const notificationService = createNotificationService()
-		const service = createContentService({ contentRepository, notificationService })
+		const service = createContentService({
+			contentRepository,
+			notificationService,
+		})
 
 		const result = await service.submitContactMessage(null, {
 			first_name: "Grace",
@@ -178,7 +184,9 @@ describe("content service", () => {
 		})
 
 		expect(result.message.status).toBe("new")
-		expect(notificationService.queueContactMessageNotification).toHaveBeenCalledWith(
+		expect(
+			notificationService.queueContactMessageNotification,
+		).toHaveBeenCalledWith(
 			result.message,
 			expect.objectContaining({
 				recipientEmail: siteSettings.contact_notification_email,
@@ -213,7 +221,10 @@ describe("content service", () => {
 	it("signs Cloudinary uploads and records file upload rows", async () => {
 		const contentRepository = createRepository()
 		const cloudinarySigner = createCloudinarySigner()
-		const service = createContentService({ contentRepository, cloudinarySigner })
+		const service = createContentService({
+			contentRepository,
+			cloudinarySigner,
+		})
 
 		const result = await service.signCloudinaryUpload(actorAdmin, {
 			public_id: "gallery/before-after",
@@ -235,5 +246,139 @@ describe("content service", () => {
 			object_path: "gallery/before-after",
 			status: "signed",
 		})
+	})
+
+	it("signs public Cloudinary uploads without admin and scopes params by purpose", async () => {
+		const contentRepository = createRepository()
+		const cloudinarySigner = createCloudinarySigner()
+		const service = createContentService({
+			contentRepository,
+			cloudinarySigner,
+		})
+
+		const result = await service.signCloudinaryUpload(
+			{ user: customerUser },
+			{
+				purpose: "booking-inspiration",
+				folder: "ignored-public-request-folder",
+				public_id: "should/not/be/signed",
+				resource_type: "image",
+				content_type: "image/png",
+				size_bytes: 1024,
+				tags: ["booking"],
+				context: { flow: "booking" },
+				metadata: {},
+			},
+		)
+
+		expect(cloudinarySigner.signUpload).toHaveBeenCalledWith(
+			expect.objectContaining({
+				folder: `${siteSettings.cloudinary_folder}/booking-inspiration`,
+				public_id: undefined,
+				resource_type: "image",
+				tags: expect.arrayContaining([
+					"booking",
+					"public_upload",
+					"booking-inspiration",
+				]),
+				context: expect.objectContaining({
+					flow: "booking",
+					purpose: "booking-inspiration",
+					actor_type: "authenticated",
+					user_id: customerUser.id,
+				}),
+			}),
+		)
+		expect(result.params).toMatchObject({
+			api_key: "demo-key",
+			signature: "signed",
+			folder: `${siteSettings.cloudinary_folder}/booking-inspiration`,
+		})
+		expect(result.upload).toMatchObject({
+			provider: "cloudinary",
+			user_id: customerUser.id,
+			content_type: "image/png",
+			size_bytes: 1024,
+			metadata: expect.objectContaining({
+				purpose: "booking-inspiration",
+				actor_type: "authenticated",
+			}),
+		})
+		expect(contentRepository.insertAuditLog).not.toHaveBeenCalled()
+	})
+
+	it("rejects admin Cloudinary upload purposes without an admin actor", async () => {
+		const contentRepository = createRepository()
+		const cloudinarySigner = createCloudinarySigner()
+		const service = createContentService({
+			contentRepository,
+			cloudinarySigner,
+		})
+
+		await expect(
+			service.signCloudinaryUpload(
+				{ user: customerUser },
+				{
+					purpose: "admin-blog",
+					resource_type: "image",
+					metadata: {},
+				},
+			),
+		).rejects.toMatchObject({
+			statusCode: 403,
+			code: "admin_upload_purpose_required",
+		})
+
+		expect(cloudinarySigner.signUpload).not.toHaveBeenCalled()
+		expect(contentRepository.createFileUpload).not.toHaveBeenCalled()
+	})
+
+	it("rejects non-image public Cloudinary upload signing requests", async () => {
+		const contentRepository = createRepository()
+		const cloudinarySigner = createCloudinarySigner()
+		const service = createContentService({
+			contentRepository,
+			cloudinarySigner,
+		})
+
+		await expect(
+			service.signCloudinaryUpload(null, {
+				purpose: "review-photo",
+				resource_type: "video",
+				content_type: "video/mp4",
+				metadata: {},
+			}),
+		).rejects.toMatchObject({
+			statusCode: 400,
+			code: "public_upload_resource_type_invalid",
+		})
+
+		expect(cloudinarySigner.signUpload).not.toHaveBeenCalled()
+		expect(contentRepository.createFileUpload).not.toHaveBeenCalled()
+	})
+
+	it("rejects oversized public Cloudinary image signing requests", async () => {
+		const contentRepository = createRepository()
+		const cloudinarySigner = createCloudinarySigner()
+		const service = createContentService({
+			contentRepository,
+			cloudinarySigner,
+		})
+
+		await expect(
+			service.signCloudinaryUpload(null, {
+				purpose: "profile-avatar",
+				resource_type: "image",
+				content_type: "image/jpeg",
+				size_bytes: 5 * 1024 * 1024 + 1,
+				metadata: {},
+			}),
+		).rejects.toMatchObject({
+			statusCode: 413,
+			code: "public_upload_file_too_large",
+		})
+
+		expect(cloudinarySigner.signUpload).not.toHaveBeenCalled()
+		expect(contentRepository.createFileUpload).not.toHaveBeenCalled()
 	})
 })

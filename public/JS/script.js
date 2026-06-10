@@ -1595,6 +1595,9 @@ const MAIN_HAIR_SERVICE_NAME_KEYWORDS = [
 
 // ============ APP SERVICES + CLOUDINARY CONFIG ============
 const appConfig = window.APP_CONFIG || {}
+const clientCloudinaryFolder =
+	String(appConfig.cloudinaryFolder || "royal-braids/gallery").trim() ||
+	"royal-braids/gallery"
 
 let appServicesReady = false
 let db = null
@@ -2005,7 +2008,8 @@ function startSessionHeartbeat() {
 }
 
 async function markCurrentSessionOffline() {
-	if (!appServicesReady || !db || !auth?.currentUser || !currentSessionId) return
+	if (!appServicesReady || !db || !auth?.currentUser || !currentSessionId)
+		return
 	const uid = String(auth.currentUser.uid || "").trim()
 	if (!uid) return
 
@@ -3128,7 +3132,11 @@ async function handleManageAccountSaveProfile() {
 			if (avatarFile.size > 5 * 1024 * 1024) {
 				throw new Error("Profile picture must be 5MB or less.")
 			}
-			const uploadedUrl = await uploadImageToCloudinary(avatarFile)
+			const uploadedUrl = await uploadImageToCloudinary(avatarFile, {
+				purpose: "profile-avatar",
+				tags: ["public_upload", "profile_avatar"],
+				context: { section: "manage_account" },
+			})
 			if (uploadedUrl) profileUpdate.photoURL = uploadedUrl
 		}
 		if (Object.keys(profileUpdate).length) {
@@ -3236,10 +3244,7 @@ async function handleManageAccountChangePassword() {
 		if (!user.email) {
 			throw new Error("Email account required for password change.")
 		}
-		const credential = createEmailCredential(
-			user.email,
-			currentPassword,
-		)
+		const credential = createEmailCredential(user.email, currentPassword)
 		await user.reauthenticateWithCredential(credential)
 		await user.updatePassword(newPassword)
 		if (authUi.manageAccountCurrentPassword)
@@ -4387,7 +4392,12 @@ async function cancelDashboardBooking(bookingId) {
 }
 
 async function saveDashboardRescheduleChanges() {
-	if (!appServicesReady || !db || !auth?.currentUser || !dashboardRescheduleTarget)
+	if (
+		!appServicesReady ||
+		!db ||
+		!auth?.currentUser ||
+		!dashboardRescheduleTarget
+	)
 		return
 
 	const bookingId = String(dashboardRescheduleTarget.id || "")
@@ -5144,10 +5154,7 @@ async function handleEmailAuthSubmit(event) {
 
 	try {
 		const currentUser = auth.currentUser
-		const credential = createEmailCredential(
-			email,
-			password,
-		)
+		const credential = createEmailCredential(email, password)
 		let signedInUser = null
 
 		if (authMode === "signin") {
@@ -6493,7 +6500,11 @@ async function handleJoinWaitlistButtonClick() {
 		let inspirationImageUrl = ""
 		const selectedFile = imageInput?.files?.[0]
 		if (selectedFile) {
-			inspirationImageUrl = await uploadImageToCloudinary(selectedFile)
+			inspirationImageUrl = await uploadImageToCloudinary(selectedFile, {
+				purpose: "booking-inspiration",
+				tags: ["public_upload", "booking_inspiration", "waitlist"],
+				context: { section: "booking", flow: "waitlist" },
+			})
 		}
 
 		const waitlistStylistKey = normalizeStylistKey(
@@ -6622,7 +6633,91 @@ async function joinWaitlistForUnavailableSlot({
 	return waitlistDocRef?.id || true
 }
 
-async function uploadImageToCloudinary(file) {
+function normalizeCloudinarySignatureResponse(signResponse = {}) {
+	const payload = signResponse?.data || signResponse || {}
+	if (payload.uploadUrl) return payload
+	if (payload.signature?.uploadUrl) return payload.signature
+	if (payload.signedUpload?.uploadUrl) return payload.signedUpload
+	return payload
+}
+
+function serializeCloudinarySignedParam(key, value) {
+	if (value === undefined || value === null || value === "") return ""
+	if (key === "tags" && Array.isArray(value)) {
+		return value
+			.map((tag) => String(tag || "").trim())
+			.filter(Boolean)
+			.join(",")
+	}
+	if (
+		key === "context" &&
+		value &&
+		typeof value === "object" &&
+		!Array.isArray(value)
+	) {
+		return Object.entries(value)
+			.filter(
+				([_contextKey, contextValue]) =>
+					contextValue !== undefined &&
+					contextValue !== null &&
+					contextValue !== "",
+			)
+			.map(
+				([contextKey, contextValue]) => `${contextKey}=${String(contextValue)}`,
+			)
+			.join("|")
+	}
+	if (Array.isArray(value)) {
+		return value
+			.map((item) => String(item || "").trim())
+			.filter(Boolean)
+			.join(",")
+	}
+	return String(value)
+}
+
+function appendCloudinarySignedParams(body, signatureData = {}) {
+	const signedParams =
+		signatureData.params && typeof signatureData.params === "object"
+			? signatureData.params
+			: {
+					timestamp: signatureData.timestamp,
+					folder: signatureData.folder || clientCloudinaryFolder,
+					public_id: signatureData.publicId || signatureData.public_id,
+					upload_preset:
+						signatureData.uploadPreset || signatureData.upload_preset,
+					eager: signatureData.eager,
+					tags: signatureData.tags,
+					context: signatureData.context,
+					api_key: signatureData.apiKey || signatureData.api_key,
+					signature: signatureData.signature,
+				}
+
+	Object.entries(signedParams).forEach(([key, value]) => {
+		const serializedValue = serializeCloudinarySignedParam(key, value)
+		if (!serializedValue) return
+		body.append(key, serializedValue)
+	})
+
+	const apiKey = signatureData.apiKey || signatureData.api_key
+	if (!signedParams.api_key && apiKey) {
+		body.append("api_key", apiKey)
+	}
+	if (!signedParams.signature && signatureData.signature) {
+		body.append("signature", signatureData.signature)
+	}
+}
+
+async function getCloudinaryUploadErrorMessage(response) {
+	try {
+		const payload = await response.json()
+		return payload?.error?.message || payload?.message || ""
+	} catch (_error) {
+		return response.text().catch(() => "")
+	}
+}
+
+async function uploadImageToCloudinary(file, options = {}) {
 	if (!file) return ""
 	if (
 		!appServicesReady ||
@@ -6631,31 +6726,46 @@ async function uploadImageToCloudinary(file) {
 	) {
 		throw new Error("Render API action service is not ready yet.")
 	}
+	if (file.type && !String(file.type).toLowerCase().startsWith("image/")) {
+		throw new Error("Only image files can be uploaded.")
+	}
+	if (file.size && file.size > 5 * 1024 * 1024) {
+		throw new Error("Image uploads must be 5MB or less.")
+	}
 
 	const signUploadCallable = callableService.httpsCallable(
 		"createCloudinarySignedUpload",
 	)
+	const purpose = options.purpose || "booking-inspiration"
 	const signResponse = await signUploadCallable({
-		folder: "royal-braids/bookings",
-		tags: "public_upload,booking",
+		purpose,
+		folder: options.folder || clientCloudinaryFolder,
+		tags: options.tags || ["public_upload", purpose],
+		context: {
+			page: "public",
+			...(options.context || {}),
+		},
+		fileName: file.name || "",
+		contentType: file.type || "image/*",
+		sizeBytes: file.size || 0,
 	})
-	const signatureData = signResponse?.data || {}
+	const signatureData = normalizeCloudinarySignatureResponse(signResponse)
+	const signedParams =
+		signatureData.params && typeof signatureData.params === "object"
+			? signatureData.params
+			: {}
 
 	if (
 		!signatureData.uploadUrl ||
-		!signatureData.apiKey ||
-		!signatureData.signature
+		!(signatureData.apiKey || signatureData.api_key || signedParams.api_key) ||
+		!(signatureData.signature || signedParams.signature)
 	) {
 		throw new Error("Failed to initialize secure Cloudinary upload")
 	}
 
 	const body = new FormData()
 	body.append("file", file)
-	body.append("api_key", signatureData.apiKey)
-	body.append("timestamp", String(signatureData.timestamp || ""))
-	body.append("signature", signatureData.signature)
-	body.append("folder", signatureData.folder || "royal-braids/bookings")
-	if (signatureData.tags) body.append("tags", signatureData.tags)
+	appendCloudinarySignedParams(body, signatureData)
 
 	const response = await fetch(signatureData.uploadUrl, {
 		method: "POST",
@@ -6663,7 +6773,8 @@ async function uploadImageToCloudinary(file) {
 	})
 
 	if (!response.ok) {
-		throw new Error("Failed to upload image to Cloudinary")
+		const cloudinaryError = await getCloudinaryUploadErrorMessage(response)
+		throw new Error(cloudinaryError || "Failed to upload image to Cloudinary")
 	}
 
 	const result = await response.json()
@@ -8222,7 +8333,11 @@ async function submitReview(event) {
 
 		let photoUrl = ""
 		if (photoFile) {
-			photoUrl = await uploadImageToCloudinary(photoFile)
+			photoUrl = await uploadImageToCloudinary(photoFile, {
+				purpose: "review-photo",
+				tags: ["public_upload", "review_photo"],
+				context: { section: "reviews" },
+			})
 		}
 
 		let verifiedBooking = false
@@ -8966,7 +9081,11 @@ document.getElementById("bookingForm").addEventListener("submit", function (e) {
 			).trim()
 			const selectedFile = imageInput?.files?.[0]
 			if (!inspirationImageUrl && selectedFile) {
-				inspirationImageUrl = await uploadImageToCloudinary(selectedFile)
+				inspirationImageUrl = await uploadImageToCloudinary(selectedFile, {
+					purpose: "booking-inspiration",
+					tags: ["public_upload", "booking_inspiration"],
+					context: { section: "booking", flow: "booking" },
+				})
 			}
 
 			const bookingRef = db.collection("bookings").doc()

@@ -3,6 +3,7 @@ const { z } = require("zod")
 const {
 	BLOG_STATUS_VALUES,
 	CLOUDINARY_RESOURCE_TYPES,
+	CLOUDINARY_UPLOAD_PURPOSES,
 	CONTACT_MESSAGE_STATUS_VALUES,
 	DEFAULT_CONTENT_LIMIT,
 	GALLERY_STATUS_VALUES,
@@ -321,6 +322,7 @@ const contactMessageStatusSchema = z
 const cloudinarySignSchema = z
 	.object({
 		tenant_id: nullableUuid,
+		purpose: z.enum(CLOUDINARY_UPLOAD_PURPOSES).default("admin-gallery"),
 		folder: optionalTrimmedString(200).refine(
 			(value) => !value || /^[A-Za-z0-9_.\/-]+$/.test(value),
 			{
@@ -339,6 +341,9 @@ const cloudinarySignSchema = z
 		upload_preset: optionalTrimmedString(120),
 		eager: optionalTrimmedString(1000),
 		tags: z.array(trimmedString(80)).default([]),
+		file_name: optionalTrimmedString(240),
+		content_type: optionalTrimmedString(120),
+		size_bytes: z.coerce.number().int().nonnegative().optional(),
 		context: z
 			.record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
 			.default({}),
@@ -402,6 +407,9 @@ const FIELD_ALIASES = Object.freeze({
 	publicId: "public_id",
 	resourceType: "resource_type",
 	uploadPreset: "upload_preset",
+	fileName: "file_name",
+	contentType: "content_type",
+	sizeBytes: "size_bytes",
 })
 
 function normalizeContentPayload(payload = {}) {

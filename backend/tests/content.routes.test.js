@@ -1,6 +1,9 @@
-const request = require("supertest")
-
 process.env.NODE_ENV = "test"
+process.env.SUPABASE_URL = ""
+process.env.SUPABASE_SERVICE_ROLE_KEY = ""
+process.env.SUPABASE_ANON_KEY = ""
+
+const request = require("supertest")
 
 const { createApp } = require("../src/app")
 
@@ -36,9 +39,7 @@ describe("phase 6 content route guards", () => {
 	it("requires auth before listing admin gallery items", async () => {
 		const app = createApp()
 
-		const response = await request(app)
-			.get("/api/v1/admin/gallery")
-			.expect(401)
+		const response = await request(app).get("/api/v1/admin/gallery").expect(401)
 
 		expect(response.body).toMatchObject({
 			ok: false,
@@ -50,7 +51,9 @@ describe("phase 6 content route guards", () => {
 		const app = createApp()
 
 		const response = await request(app)
-			.post("/api/v1/admin/reviews/00000000-0000-4000-8000-000000000701/moderate")
+			.post(
+				"/api/v1/admin/reviews/00000000-0000-4000-8000-000000000701/moderate",
+			)
 			.send({ status: "approved" })
 			.expect(401)
 
@@ -60,12 +63,12 @@ describe("phase 6 content route guards", () => {
 		})
 	})
 
-	it("requires auth before signing Cloudinary uploads", async () => {
+	it("requires auth before signing admin Cloudinary uploads", async () => {
 		const app = createApp()
 
 		const response = await request(app)
 			.post("/api/v1/uploads/cloudinary/sign")
-			.send({ publicId: "gallery/test" })
+			.send({ purpose: "admin-gallery", publicId: "gallery/test" })
 			.expect(401)
 
 		expect(response.body).toMatchObject({
@@ -74,11 +77,31 @@ describe("phase 6 content route guards", () => {
 		})
 	})
 
+	it("allows public upload permission validation without auth", async () => {
+		const app = createApp()
+
+		const response = await request(app)
+			.post("/api/v1/uploads/cloudinary/sign")
+			.send({
+				purpose: "review-photo",
+				resourceType: "video",
+				contentType: "video/mp4",
+			})
+			.expect(400)
+
+		expect(response.body).toMatchObject({
+			ok: false,
+			code: "public_upload_resource_type_invalid",
+		})
+	})
+
 	it("requires auth before updating contact message status", async () => {
 		const app = createApp()
 
 		const response = await request(app)
-			.post("/api/v1/admin/contact-messages/00000000-0000-4000-8000-000000000801/status")
+			.post(
+				"/api/v1/admin/contact-messages/00000000-0000-4000-8000-000000000801/status",
+			)
 			.send({ status: "resolved" })
 			.expect(401)
 
