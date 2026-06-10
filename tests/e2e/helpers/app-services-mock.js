@@ -342,7 +342,8 @@ async function installAppServicesMock(page, options = {}) {
 						mockOptions.rejectEmailPasswordMessage ||
 							"Mock email/password sign-in failed",
 					)
-					error.code = "auth/invalid-credential"
+					error.code =
+						mockOptions.rejectEmailPasswordCode || "auth/invalid-credential"
 					throw error
 				}
 

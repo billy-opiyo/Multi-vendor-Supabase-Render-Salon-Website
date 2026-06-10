@@ -238,6 +238,31 @@ test.describe("public feature coverage", () => {
 		expect(pageErrors).toEqual([])
 	})
 
+	test("invalid Supabase email login credentials focus and blink the register link", async ({
+		page,
+	}) => {
+		const pageErrors = await openPublicPageWithAppServicesMock(page, {
+			rejectEmailPasswordSignIn: true,
+			rejectEmailPasswordCode: "invalid_credentials",
+			rejectEmailPasswordMessage: "Invalid credentials",
+		})
+
+		await page.locator("#openAuthModalBtn").click()
+		await expect(page.locator("#authModal")).toHaveClass(/active/)
+		await page.locator("#authEmail").fill("missing.account@example.com")
+		await page.locator("#authPassword").fill("WrongPass123")
+		await page.locator("#emailAuthSubmit").click()
+
+		await expect(page.locator("#authMessage")).toContainText(
+			/Invalid credentials/i,
+		)
+		await expect(page.locator("#switchToSignupBtn")).toHaveClass(
+			/auth-register-highlight/,
+		)
+		await expect(page.locator("#switchToSignupBtn")).toBeFocused()
+		expect(pageErrors).toEqual([])
+	})
+
 	test("gallery favorites require login and save to the signed-in dashboard", async ({
 		page,
 	}) => {

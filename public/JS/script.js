@@ -1777,6 +1777,29 @@ function getFriendlyAuthError(error) {
 	return error?.message || "Authentication failed"
 }
 
+function isSupabaseInvalidCredentialsError(error = {}) {
+	const code = String(
+		error?.code || error?.error || error?.error_code || error?.status || "",
+	)
+		.trim()
+		.toLowerCase()
+	const message = String(
+		error?.message || error?.msg || error?.error_description || "",
+	)
+		.trim()
+		.toLowerCase()
+
+	return (
+		[
+			"invalid_credentials",
+			"invalid_grant",
+			"auth/invalid-login-credentials",
+		].includes(code) ||
+		/invalid\s+(login\s+)?credentials?/.test(message) ||
+		/invalid\s+email\s+or\s+password/.test(message)
+	)
+}
+
 function setGoogleAuthButtonsBusy(isBusy) {
 	const busy = isBusy === true
 	if (authUi.googleBtn) {
@@ -3522,10 +3545,18 @@ function clearRegisterPromptHighlight() {
 
 function promptRegisterForMissingAccount() {
 	setAuthMode("signin")
-	if (authUi.switchToSignupBtn) {
-		authUi.switchToSignupBtn.classList.add("auth-register-highlight")
-		authUi.switchToSignupBtn.setAttribute("aria-live", "polite")
-		authUi.switchToSignupBtn.focus()
+	const registerBtn = authUi.switchToSignupBtn
+	if (!registerBtn) return
+
+	registerBtn.classList.remove("auth-register-highlight")
+	void registerBtn.offsetWidth
+	registerBtn.classList.add("auth-register-highlight")
+	registerBtn.setAttribute("aria-live", "polite")
+
+	try {
+		registerBtn.focus({ preventScroll: true })
+	} catch (_error) {
+		registerBtn.focus()
 	}
 }
 
@@ -5224,7 +5255,19 @@ async function handleEmailAuthSubmit(event) {
 
 		if (authUi.emailForm) authUi.emailForm.reset()
 	} catch (error) {
-		console.error("Email auth failed:", error)
+		const code = error?.code || ""
+		const isExpectedSignInCredentialFailure =
+			authMode === "signin" &&
+			(isSupabaseInvalidCredentialsError(error) ||
+				code === "auth/wrong-password" ||
+				code === "auth/invalid-credential")
+
+		if (isExpectedSignInCredentialFailure) {
+			console.warn("Email auth rejected credentials:", error)
+		} else {
+			console.error("Email auth failed:", error)
+		}
+
 		if (authMode === "signin") {
 			void trackLoginActivity({
 				method: "email/password",
@@ -5233,7 +5276,12 @@ async function handleEmailAuthSubmit(event) {
 				context: { source: "signin", attemptedEmail: email },
 			})
 		}
-		const code = error?.code || ""
+
+		if (authMode === "signin" && isSupabaseInvalidCredentialsError(error)) {
+			showTimedAuthMessage("error", `❌ ${getFriendlyAuthError(error)}`)
+			promptRegisterForMissingAccount()
+			return
+		}
 
 		if (authMode === "signin" && code === "auth/wrong-password") {
 			showTimedAuthMessage(
