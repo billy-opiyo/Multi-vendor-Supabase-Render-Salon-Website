@@ -9,9 +9,11 @@
  *   node scripts/new-client.js --name "Glam House Spa" --slug glam-house-spa \
  *     --phone "+254700000000" --email "info@glamhouse.co.ke"
  *
- * This updates:
+ * This updates the active browser-safe white-label config:
  *   - public/client-config.js
- *   - functions/client-config.js
+ *
+ * The old Firebase Functions client config now lives in
+ * legacy/firebase-production-archive/ and is no longer edited by this script.
  */
 
 const fs = require("fs")
@@ -122,17 +124,9 @@ async function collectClientOptions() {
 async function main() {
 	const projectRoot = process.cwd()
 	const publicConfigPath = path.join(projectRoot, "public", "client-config.js")
-	const functionsConfigPath = path.join(
-		projectRoot,
-		"functions",
-		"client-config.js",
-	)
 
 	if (!fs.existsSync(publicConfigPath)) {
 		throw new Error(`Missing file: ${publicConfigPath}`)
-	}
-	if (!fs.existsSync(functionsConfigPath)) {
-		throw new Error(`Missing file: ${functionsConfigPath}`)
 	}
 
 	const { clientNameRaw, slug, phoneRaw, emailRaw } =
@@ -148,7 +142,6 @@ async function main() {
 	const bookingsEmail = `bookings@${emailDomain}`
 
 	let publicConfig = fs.readFileSync(publicConfigPath, "utf8")
-	let functionsConfig = fs.readFileSync(functionsConfigPath, "utf8")
 
 	publicConfig = replaceConstString(publicConfig, "businessName", clientName)
 	publicConfig = replaceConstString(publicConfig, "businessSlug", slug)
@@ -177,43 +170,19 @@ async function main() {
 		emailRaw,
 	)
 
-	functionsConfig = replaceSimple(
-		functionsConfig,
-		/businessName:\s*"[^"]*"/,
-		`businessName: "${clientName}"`,
-	)
-	functionsConfig = replaceSimple(
-		functionsConfig,
-		/teamName:\s*"[^"]*"/,
-		`teamName: "${clientName} Team"`,
-	)
-	functionsConfig = replaceSimple(
-		functionsConfig,
-		/contactNotificationEmail:\s*"[^"]*"/,
-		`contactNotificationEmail: "${emailRaw}"`,
-	)
-	functionsConfig = replaceSimple(
-		functionsConfig,
-		/cloudinaryFolder:\s*"[^"]*"/,
-		`cloudinaryFolder: "${slug}/uploads"`,
-	)
-
 	fs.writeFileSync(publicConfigPath, publicConfig, "utf8")
-	fs.writeFileSync(functionsConfigPath, functionsConfig, "utf8")
 
 	console.log("✅ Client bootstrap applied")
 	console.log(`   Name: ${clientName}`)
 	console.log(`   Slug: ${slug}`)
 	console.log("   Updated files:")
 	console.log("    - public/client-config.js")
-	console.log("    - functions/client-config.js")
 	console.log("")
 	console.log("Next:")
-	console.log("1) Update Firebase web config in public/client-config.js")
-	console.log(
-		"2) Set Firebase Function secrets (Resend/WhatsApp/Cloudinary) for this Firebase project",
-	)
-	console.log("3) Deploy: firebase deploy --only functions,hosting:main-site")
+	console.log("1) Verify Supabase public URL/anon key in public/client-config.js")
+	console.log("2) Verify Render API base URL in public/client-config.js")
+	console.log("3) Configure Render server-side env vars for Supabase, Resend, WhatsApp, Cloudinary, and JOB_SECRET")
+	console.log("4) Apply Supabase migrations/bootstrap admin, then deploy Render + Vercel")
 }
 
 try {

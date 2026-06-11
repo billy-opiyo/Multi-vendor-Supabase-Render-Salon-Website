@@ -1,8 +1,8 @@
 # Supabase Foundation — Phase 1
 
-This folder contains the Phase 1 Supabase foundation for the Firebase-to-Supabase/Render/Vercel rebuild.
+This folder contains the Supabase foundation for the current Supabase + Render + Vercel production architecture.
 
-The Firebase-era implementation remains reference-only. New runtime behavior should use:
+The Firebase-era implementation is archived under `legacy/firebase-production-archive/` for reference only. Active runtime behavior should use:
 
 - **Supabase** for Postgres, Auth, RLS, migrations, optional Storage, and Realtime.
 - **Render** for trusted service-role workflows, notifications, protected job execution endpoints, Cloudinary signing, and privileged admin actions.

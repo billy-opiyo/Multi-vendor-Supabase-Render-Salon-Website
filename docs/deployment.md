@@ -6,7 +6,7 @@ This project targets the Phase 9 **Supabase + Render + Vercel** architecture:
 - **Render** runs the trusted backend API, service-role workflows, protected job execution endpoints, notification delivery, and Cloudinary signing.
 - **Vercel** serves the public/admin frontend with only public configuration values.
 
-Firebase files in the repository are reference-only until final archive/removal. They are not active deployment targets.
+Firebase files are archived under `legacy/firebase-production-archive/` for historical reference only. They are not active deployment targets.
 
 For the formal post-Phase 9 production go/no-go process, use [`docs/production-signoff.md`](./production-signoff.md).
 

@@ -1,9 +1,14 @@
 process.env.NODE_ENV = "test"
 
+const express = require("express")
 const request = require("supertest")
 
+const {
+	errorHandler,
+	notFoundHandler,
+} = require("../src/middleware/errorHandler")
+
 function createAppWithBookingService(service) {
-	const appPath = require.resolve("../src/app")
 	const routesPath = require.resolve(
 		"../src/modules/bookings/booking.routes",
 	)
@@ -14,7 +19,6 @@ function createAppWithBookingService(service) {
 		"../src/modules/bookings/booking.service",
 	)
 
-	delete require.cache[appPath]
 	delete require.cache[routesPath]
 	delete require.cache[controllerPath]
 
@@ -22,14 +26,17 @@ function createAppWithBookingService(service) {
 	const originalCreateBookingService = serviceModule.createBookingService
 	serviceModule.createBookingService = () => service
 
-	const { createApp } = require("../src/app")
-	const app = createApp()
+	const bookingRoutes = require("../src/modules/bookings/booking.routes")
+	const app = express()
+	app.use(express.json())
+	app.use(bookingRoutes)
+	app.use(notFoundHandler)
+	app.use(errorHandler)
 
 	return {
 		app,
 		restore() {
 			serviceModule.createBookingService = originalCreateBookingService
-			delete require.cache[appPath]
 			delete require.cache[routesPath]
 			delete require.cache[controllerPath]
 		},

@@ -44,7 +44,7 @@ No automated production Firebase-to-Supabase data migration is wired into the ac
 
 ## Firebase cleanup policy
 
-Firebase files can remain temporarily as reference material, but they must not be active runtime, test, or deployment dependencies.
+Firebase reference files have now been gathered under `legacy/firebase-production-archive/`. They remain historical reference material only and must not be active runtime, test, or deployment dependencies.
 
 Already removed from the active root workflow:
 
@@ -54,23 +54,26 @@ Already removed from the active root workflow:
 - Root Functions Jest test invocation.
 - Active browser Firebase SDK script loading from public/admin HTML.
 
-Reference-only files still present and candidates for archive/removal after manual parity sign-off:
+Reference-only files now archived in `legacy/firebase-production-archive/`:
 
-- `.firebaserc`
-- `firebase.json`
-- `firestore.rules`
-- `functions/`
-- `tests/rules/`
-- `vitest.rules.config.js`
-- Legacy Firebase-focused sections in `public/README.md`, `public/ADMIN_CONSOLE_USER_MANUAL.md`, and other public docs.
+- `legacy/firebase-production-archive/.firebaserc`
+- `legacy/firebase-production-archive/firebase.json`
+- `legacy/firebase-production-archive/firestore.rules`
+- `legacy/firebase-production-archive/functions/`
+- `legacy/firebase-production-archive/tests/rules/`
+- `legacy/firebase-production-archive/vitest.rules.config.js`
+- `legacy/firebase-production-archive/admin-auth-export.json`
+- `legacy/firebase-production-archive/README.md`
+
+Legacy Firebase-focused sections in active public docs have been replaced with Supabase + Render + Vercel production wording.
 
 Suggested final cleanup sequence:
 
 1. Confirm Supabase migrations, Render backend, external scheduled jobs, and Vercel frontend are live.
 2. Confirm booking, waitlist, admin, content, notification, and security smoke checks pass in staging.
-3. Archive Firebase reference files in a separate branch/tag if historical behavior needs preservation.
-4. Remove Firebase config/rules/functions/runtime test files from the active branch.
-5. Re-run `npm test` and deployment smoke checks.
+3. Keep the `legacy/firebase-production-archive/` folder until the project owner decides whether to retain, tag, or delete the archive.
+4. Remove the archive from the active branch only after confirming historical behavior no longer needs to be referenced.
+5. Re-run `npm test` and deployment smoke checks after any archive deletion.
 
 ## Manual Phase 9 sign-off checklist
 
@@ -84,4 +87,4 @@ Use this compact checklist as the migration/cleanup portion of the full producti
 - [ ] CORS allows only approved Vercel/custom domains.
 - [ ] Notification providers verified in dry-run, then enabled intentionally.
 - [ ] Production Firebase data migration completed or explicitly deferred.
-- [ ] Firebase reference files archived/removed after parity sign-off.
+- [x] Firebase reference files archived under `legacy/firebase-production-archive/` after parity sign-off.

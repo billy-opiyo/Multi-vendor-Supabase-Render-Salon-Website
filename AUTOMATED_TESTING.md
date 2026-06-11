@@ -2,7 +2,7 @@
 
 This project now uses the Phase 9 validation stack for the active **Supabase + Render + Vercel** architecture.
 
-The old Firebase emulator, Firestore rules, and Cloud Functions tests remain historical reference only. They are no longer part of the root `npm test` workflow.
+The old Firebase emulator, Firestore rules, and Cloud Functions tests are archived under `legacy/firebase-production-archive/` for historical reference only. They are no longer part of the root `npm test` workflow.
 
 ## Active validation tools
 
@@ -49,11 +49,11 @@ npm test
 
 - `npm test` no longer starts Firebase emulators.
 - `npm test` no longer runs Firestore rules tests.
-- `npm test` no longer runs Jest tests under `functions/`.
-- Root `check:js` no longer checks `functions/` files as active runtime code.
+- `npm test` no longer runs Jest tests under the archived `legacy/firebase-production-archive/functions/` folder.
+- Root `check:js` no longer checks archived Firebase Functions files as active runtime code.
 - Root dependencies no longer include Firebase SDK, Firebase CLI, or Firebase rules-unit-testing packages.
 
-Legacy Firebase files may still exist in the repository as reference material until cleanup/archive work is finalized, but they are not active validation targets.
+Legacy Firebase files now live in `legacy/firebase-production-archive/`, but they are not active validation targets.
 
 ## First active tests included
 
@@ -67,7 +67,7 @@ Legacy Firebase files may still exist in the repository as reference material un
   - active root dependencies do not include Firebase packages,
   - public/admin HTML loads Supabase and Render adapters instead of Firebase browser SDKs,
   - public client configuration does not expose private Render/Supabase/provider secrets,
-  - `render.yaml` defines Render web/cron services,
+  - `render.yaml` defines the Render web service and protected external scheduler endpoints,
   - every table created by the Supabase foundation migration has RLS enabled.
 - Backend tests for health checks, auth/admin middleware, booking workflows, content modules, security modules, notification providers/services/jobs, Cloudinary signing, rate limiting, and activity timeline routes.
 

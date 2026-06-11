@@ -8,7 +8,7 @@ This file is the rebuild rulebook for this salon marketplace / white-label salon
 - **Render**
 - **Vercel**
 
-There must be **no Firebase integration** in the rebuilt application. Existing Firebase Functions, scripts, and browser JavaScript files may remain in the repository temporarily as reference material only.
+There must be **no Firebase integration** in the rebuilt application. The old Firebase Functions, config/rules, and emulator tests are archived under `legacy/firebase-production-archive/` as reference material only.
 
 ---
 
@@ -53,17 +53,17 @@ The current repository contains Firebase-oriented files from the original implem
 
 Use these files to understand current behavior:
 
-- `functions/index.js`
-- `functions/client-config.js`
-- `functions/waitlist-action-messages.js`
+- `legacy/firebase-production-archive/functions/index.js`
+- `legacy/firebase-production-archive/functions/client-config.js`
+- `legacy/firebase-production-archive/functions/waitlist-action-messages.js`
 - `scripts/new-client.js`
 - `scripts/optimize-images.js`
 - `scripts/test-static-server.js`
 - `public/client-config.js`
 - `public/JS/script.js`
 - `public/JS/admin.js`
-- Existing tests under `tests/` and `functions/__tests__/`
-- Existing Firebase config/rules files such as `firebase.json`, `.firebaserc`, and `firestore.rules`
+- Historical Firebase tests under `legacy/firebase-production-archive/functions/__tests__/` and `legacy/firebase-production-archive/tests/rules/`
+- Existing Firebase config/rules files such as `legacy/firebase-production-archive/firebase.json`, `legacy/firebase-production-archive/.firebaserc`, and `legacy/firebase-production-archive/firestore.rules`
 
 ### What may be reused conceptually
 

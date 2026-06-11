@@ -4,7 +4,7 @@ Generated: 2026-06-11 08:53 Africa/Nairobi
 
 ## Scope
 
-This handoff summarizes the current in-progress Firebase-to-Supabase/Render parity fixes from the working tree. It focuses on booking slot availability parity, expired-slot release parity, waitlist queue lookup parity, and visible Render sync error handling.
+This handoff summarizes the Firebase-to-Supabase/Render parity fixes from the working tree. It focuses on booking slot availability parity, expired-slot release parity, waitlist queue lookup parity, and visible Render sync error handling.
 
 The source changes described here are currently uncommitted and should be reviewed/tested before merging.
 
@@ -148,17 +148,17 @@ Completed admin UI pieces:
 
 ## Edited Files and Purpose
 
-| File | Purpose of current parity edits |
-| --- | --- |
-| `backend/src/modules/bookings/booking.controller.js` | Added controllers for public booking-slot listing, booking-based waitlist queue lookup, and legacy-slot expired release. |
-| `backend/src/modules/bookings/booking.repository.js` | Added data-access helpers for public slot listing, slot lookup by date/stylist, and waitlist lookup by booking ID. |
-| `backend/src/modules/bookings/booking.routes.js` | Added new Render API routes for booking slots, booking waitlist queue lookup, and legacy expired-slot release. |
-| `backend/src/modules/bookings/booking.service.js` | Added legacy slot ID parsing/resolution, public slot listing delegation, booking-based waitlist queue workflow, and legacy expired-slot release workflow. |
-| `backend/src/modules/bookings/booking.validators.js` | Added schemas for public booking-slot list query validation and legacy slot ID params. |
-| `public/JS/admin.js` | Added visible admin message handling for Render sync failures. |
-| `public/JS/render-api-adapter.js` | Added UUID detection and route selection for expired-slot release; added booking-ID route support for waitlist queue lookup. |
-| `public/JS/script.js` | Added public visible Render sync error warnings. |
-| `public/JS/supabase-browser-adapter.js` | Added booking slot remote collection polling/mapping and Render sync error event dispatching. |
+| File                                                 | Purpose of current parity edits                                                                                                                           |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `backend/src/modules/bookings/booking.controller.js` | Added controllers for public booking-slot listing, booking-based waitlist queue lookup, and legacy-slot expired release.                                  |
+| `backend/src/modules/bookings/booking.repository.js` | Added data-access helpers for public slot listing, slot lookup by date/stylist, and waitlist lookup by booking ID.                                        |
+| `backend/src/modules/bookings/booking.routes.js`     | Added new Render API routes for booking slots, booking waitlist queue lookup, and legacy expired-slot release.                                            |
+| `backend/src/modules/bookings/booking.service.js`    | Added legacy slot ID parsing/resolution, public slot listing delegation, booking-based waitlist queue workflow, and legacy expired-slot release workflow. |
+| `backend/src/modules/bookings/booking.validators.js` | Added schemas for public booking-slot list query validation and legacy slot ID params.                                                                    |
+| `public/JS/admin.js`                                 | Added visible admin message handling for Render sync failures.                                                                                            |
+| `public/JS/render-api-adapter.js`                    | Added UUID detection and route selection for expired-slot release; added booking-ID route support for waitlist queue lookup.                              |
+| `public/JS/script.js`                                | Added public visible Render sync error warnings.                                                                                                          |
+| `public/JS/supabase-browser-adapter.js`              | Added booking slot remote collection polling/mapping and Render sync error event dispatching.                                                             |
 
 ## Remaining Parity Gap Fixes
 
@@ -206,7 +206,7 @@ Continuation update: 2026-06-11 09:40 Africa/Nairobi. The high-priority validati
 
 ### Firebase parity closure checks
 
-- [x] Compare these Render flows against legacy Firebase callable behavior in `functions/index.js`:
+- [x] Compare these Render flows against legacy Firebase callable behavior in `legacy/firebase-production-archive/functions/index.js`:
   - `clientReleaseExpiredBookingSlot`
   - `clientGetWaitlistQueueInfo`
   - public `bookingSlots` reads/listeners
@@ -217,27 +217,28 @@ Continuation update: 2026-06-11 09:40 Africa/Nairobi. The high-priority validati
 
 Continuation checks run on 2026-06-11 after applying the remaining parity fixes:
 
-| Command / check | Status | Notes |
-| --- | --- | --- |
-| `npm --prefix backend test -- booking.service.test.js booking.repository.test.js booking.parity.routes.test.js --reporter dot` | Passed | Focused backend parity coverage: 3 files, 25 tests. |
-| `npm run test:unit -- --run tests/unit/render-api-adapter.test.js` | Passed | Root unit suite ran 3 files, 13 tests including new Render adapter routing tests. |
-| `npm run check:js` | Passed | Static JS syntax check for public/scripts files. |
-| `npm run test:backend` | Passed | Backend suite: 21 files, 97 tests. |
-| `npm run test:phase9` | Passed | Active Supabase/Render/Vercel validation: `check:js`, root unit 13/13, backend 97/97. |
+| Command / check                                                                                                                | Status | Notes                                                                                     |
+| ------------------------------------------------------------------------------------------------------------------------------ | ------ | ----------------------------------------------------------------------------------------- |
+| `npm --prefix backend test -- booking.service.test.js booking.repository.test.js booking.parity.routes.test.js --reporter dot` | Passed | Focused backend parity coverage: 3 files, 25 tests.                                       |
+| `npm run test:unit -- --run tests/unit/render-api-adapter.test.js`                                                             | Passed | Root unit suite ran 3 files, 13 tests including new Render adapter routing tests.         |
+| `npm run check:js`                                                                                                             | Passed | Static JS syntax check for public/scripts files.                                          |
+| `npm run test:backend`                                                                                                         | Passed | Backend suite: 21 files, 99 tests.                                                        |
+| `npm run test:phase9`                                                                                                          | Passed | Active Supabase/Render/Vercel validation: `check:js`, root unit 13/13, backend 99/99.     |
+| `npm test`                                                                                                                     | Passed | Full active validation: `check:js`, root unit 13/13, backend 99/99, Playwright E2E 23/23. |
 
-No automated validation test suite was run while creating this handoff. The following inspection commands/tools were run to understand the working tree and draft the handoff:
+The following inspection commands/tools were run while creating the original handoff to understand the working tree and draft the parity notes:
 
-| Command / check | Status | Notes |
-| --- | --- | --- |
-| `git status --short` | Run | Confirmed 9 modified source files. |
-| `git diff --stat` | Run | Confirmed approximate change size: 467 insertions, 7 deletions. |
-| `git diff -- <edited files>` | Run | Reviewed the uncommitted parity changes. Output was partially truncated, so targeted file reads/searches were also used. |
-| Search Markdown docs for parity/testing references | Run | Found active Supabase/Render/Vercel validation notes in `AUTOMATED_TESTING.md` and existing parity mapping docs. |
-| Read targeted backend/frontend files | Run | Reviewed service/validator/test context relevant to the parity changes. |
+| Command / check                                    | Status | Notes                                                                                                                    |
+| -------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `git status --short`                               | Run    | Confirmed 9 modified source files.                                                                                       |
+| `git diff --stat`                                  | Run    | Confirmed approximate change size: 467 insertions, 7 deletions.                                                          |
+| `git diff -- <edited files>`                       | Run    | Reviewed the uncommitted parity changes. Output was partially truncated, so targeted file reads/searches were also used. |
+| Search Markdown docs for parity/testing references | Run    | Found active Supabase/Render/Vercel validation notes in `AUTOMATED_TESTING.md` and existing parity mapping docs.         |
+| Read targeted backend/frontend files               | Run    | Reviewed service/validator/test context relevant to the parity changes.                                                  |
 
-## Automated Tests Not Run Yet For These Current Changes
+## Additional Automated Test Commands
 
-These commands should be run after adding/adjusting tests for the parity changes:
+These commands are the active validation commands for parity changes and have now been rerun successfully on 2026-06-11:
 
 ```cmd
 npm run check:js
@@ -273,19 +274,15 @@ Notes:
 npm run test:phase9
 ```
 
-passed with root unit tests and backend tests. That historical result predates the current uncommitted working-tree changes listed in this handoff, so it should not be treated as validation for the new parity edits until tests are rerun.
+passed with root unit tests and backend tests. That historical result has been superseded by the 2026-06-11 reruns listed above, including full `npm test` with Playwright E2E 23/23.
 
-## Suggested Next Implementation Steps
+## Remaining Manual Follow-ups
 
-1. Add focused backend tests for the three new route/workflow areas:
-   - public booking slot listing,
-   - booking-based waitlist queue lookup,
-   - legacy slot ID expired release.
-2. Add frontend adapter coverage or E2E assertions for UUID-vs-legacy route selection and booking-vs-waitlist queue route selection.
-3. Run `npm run check:js` and `npm run test:backend` first for fast feedback.
-4. Run `npm run test:phase9` after backend/frontend test coverage is added.
-5. Run `npm run test:e2e` or full `npm test` before merge/sign-off.
-6. If tests pass, update the Firebase-to-Supabase mapping/status docs to mark these parity gaps as complete or partially complete with evidence.
+Automated implementation/test coverage for the high-priority parity gaps is complete. Remaining items are manual/product checks:
+
+1. Confirm the public booking slot polling interval (`5000ms`) does not over-poll Render/Supabase in production.
+2. Manually verify public/admin Render sync error messages appear in the right UI areas, clear correctly, and use acceptable wording.
+3. If product requirements change, revisit whether public/customer review self-edit parity needs to be reintroduced.
 
 ## Handoff Risk Notes
 
@@ -293,4 +290,3 @@ passed with root unit tests and backend tests. That historical result predates t
 - Legacy slot ID parsing depends on `date__stylist__time` format and normalized time matching. Any mismatch between frontend legacy IDs and backend stored `slot_time` can break expired-slot release.
 - `listPublicBookingSlots()` defaults to `taken=true`. If the UI needs available slots too, callers must pass `taken=false` or the default may need adjustment.
 - Render sync error surfacing improves visibility, but it may expose backend error wording directly to users/admins. Review error message wording before production launch.
-- No new tests were added as part of the current source changes shown in the working tree, so the parity fixes remain implementation-complete but validation-incomplete.

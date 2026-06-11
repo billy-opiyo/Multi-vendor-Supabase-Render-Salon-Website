@@ -18,12 +18,12 @@ The restored project currently contains a Firebase-era implementation. These fil
 
 | Legacy area                | Files                                                                 | Use as reference for                                                                                                     |
 | -------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Firebase Functions backend | `functions/index.js`                                                  | Booking lifecycle, waitlist workflows, admin callable operations, notifications, scheduled jobs, audit/security logging. |
-| Function config            | `functions/client-config.js`, `functions/waitlist-action-messages.js` | Business naming, notification text, Cloudinary folder conventions, client-level defaults.                                |
+| Firebase Functions backend | `legacy/firebase-production-archive/functions/index.js`                                                  | Booking lifecycle, waitlist workflows, admin callable operations, notifications, scheduled jobs, audit/security logging. |
+| Function config            | `legacy/firebase-production-archive/functions/client-config.js`, `legacy/firebase-production-archive/functions/waitlist-action-messages.js` | Business naming, notification text, Cloudinary folder conventions, client-level defaults.                                |
 | Frontend public app        | `public/JS/script.js`                                                 | Booking form behavior, public content rendering, client catalog behavior, review/contact flows.                          |
 | Admin frontend             | `public/JS/admin.js`                                                  | Admin screens, realtime expectations, permissions, booking/status actions, content management, security dashboards.      |
 | Client bootstrap scripts   | `scripts/new-client.js`                                               | White-label setup ideas and required client configuration fields.                                                        |
-| Old tests                  | `tests/`, `functions/__tests__/`                                      | Expected behavior, edge cases, and regression scenarios.                                                                 |
+| Old Firebase tests         | `legacy/firebase-production-archive/functions/__tests__/`, `legacy/firebase-production-archive/tests/rules/` | Historical Firebase edge cases and regression scenarios. Active tests live in the root `tests/` and `backend/tests/` folders. |
 
 Important: these files explain **what the system does**, not **how the new system should be implemented**.
 
@@ -692,7 +692,7 @@ Goal: understand the current Firebase-era app before changing runtime architectu
 
 Tasks:
 
-- Inventory all Firebase Functions exports from `functions/index.js`.
+- Inventory all Firebase Functions exports from `legacy/firebase-production-archive/functions/index.js`.
 - Inventory all Firestore collections used by frontend/admin code.
 - Inventory all status values for bookings, waitlist, reviews, contact messages, security events, and admin roles.
 - Inventory current notification templates and timing rules.

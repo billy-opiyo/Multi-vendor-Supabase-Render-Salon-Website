@@ -20,17 +20,11 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Set up Java for Firebase emulators
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-
       - name: Install root dependencies
         run: npm ci
 
-      - name: Install Functions dependencies
-        run: npm ci --prefix functions
+      - name: Install backend dependencies
+        run: npm ci --prefix backend
 
       - name: Check JavaScript syntax
         run: npm run check:js
@@ -38,17 +32,14 @@ jobs:
       - name: Run unit tests
         run: npm run test:unit
 
-      - name: Run Firestore rules tests
-        run: npm run test:rules
+      - name: Run backend tests
+        run: npm run test:backend
 
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
       - name: Run Playwright E2E tests
         run: npm run test:e2e -- --project=chromium
-
-      - name: Run Functions Jest tests
-        run: npm --prefix functions test
 
       - name: Upload Playwright report on failure
         if: failure()
