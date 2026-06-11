@@ -1458,6 +1458,31 @@ function showTimedFormMessage(msg, type, text, duration = 4000) {
 	formMessageTimers.set(msg, timerId)
 }
 
+function getPublicSyncErrorMessage(detail = {}) {
+	const collectionName = String(detail.collectionName || "").trim()
+	const action = String(detail.operation || "sync").trim() || "sync"
+	const message = String(detail.message || "unknown error").trim()
+	const label = collectionName
+		? collectionName.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase()
+		: "record"
+	return `⚠️ Your ${label} change was saved locally, but the Render sync ${action} needs attention: ${message}`
+}
+
+function bindVisibleRenderSyncErrors() {
+	window.addEventListener("appservices:render-sync-error", (event) => {
+		const target =
+			document.getElementById("bookingMessage") ||
+			authUi.dashboardMessage ||
+			document.getElementById("authMessage")
+		showTimedFormMessage(
+			target,
+			"error",
+			getPublicSyncErrorMessage(event.detail || {}),
+			8000,
+		)
+	})
+}
+
 const iconPaths = {
 	scissors:
 		'<path d="M14.5 9.5L19.5 4.5M9.5 9.5L4.5 4.5M7 17l-3 3m13-3l3 3m-7-3a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"/>',

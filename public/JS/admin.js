@@ -1664,6 +1664,27 @@ function setAdminMessage(type, text, targetId = "adminMessage") {
 	adminMessageTimers.set(targetId, timer)
 }
 
+function getAdminSyncErrorTargetId(collectionName = "") {
+	const normalizedName = String(collectionName || "").trim()
+	const targetMap = {
+		adminUsers: "adminAdminsMessage",
+		blogs: "adminBlogsMessage",
+		bookings: "adminActionMessage",
+		contactMessages: "adminContactMessage",
+		galleryStyles: "adminGalleryMessage",
+		reviews: "adminReviewsMessage",
+		waitlist: "adminWaitlistMessage",
+	}
+	return targetMap[normalizedName] || "adminActionMessage"
+}
+
+function getAdminSyncErrorMessage(detail = {}) {
+	const collectionName = String(detail.collectionName || "record").trim()
+	const operation = String(detail.operation || "sync").trim() || "sync"
+	const message = String(detail.message || "unknown error").trim()
+	return `⚠️ ${collectionName} ${operation} was saved locally, but Render sync needs attention: ${message}`
+}
+
 async function callAdminRestrictUserAction(payload = {}) {
 	if (
 		!appServicesReady ||
@@ -8441,6 +8462,15 @@ function initializeAdminPanel() {
 			"error",
 			`Security notice: ${getAdminSecurityRestrictionMessage(event.detail || {})}`,
 			"adminAuthMessage",
+		)
+	})
+
+	window.addEventListener("appservices:render-sync-error", (event) => {
+		const detail = event.detail || {}
+		setAdminMessage(
+			"error",
+			getAdminSyncErrorMessage(detail),
+			getAdminSyncErrorTargetId(detail.collectionName),
 		)
 	})
 

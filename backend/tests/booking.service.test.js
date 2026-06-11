@@ -116,6 +116,9 @@ const createPayload = {
 function createRepository(overrides = {}) {
 	return {
 		findSlotByIdentity: vi.fn().mockResolvedValue(baseSlot),
+		findSlotById: vi.fn().mockResolvedValue(baseSlot),
+		listPublicBookingSlots: vi.fn().mockResolvedValue([baseSlot]),
+		listSlotsByDateAndStylist: vi.fn().mockResolvedValue([baseSlot]),
 		createSlot: vi.fn(async (values) => ({ ...baseSlot, ...values })),
 		reserveSlot: vi.fn(async (_slotId, values) => ({
 			...baseSlot,
@@ -153,6 +156,7 @@ function createRepository(overrides = {}) {
 			...values,
 		})),
 		findWaitlistById: vi.fn().mockResolvedValue(baseWaitlistEntry),
+		findWaitlistByBookingId: vi.fn().mockResolvedValue(baseWaitlistEntry),
 		listAdminWaitlist: vi.fn().mockResolvedValue([baseWaitlistEntry]),
 		createWaitlistEntry: vi.fn(async (values) => ({
 			...baseWaitlistEntry,
@@ -202,6 +206,23 @@ function createNotificationServiceMock(overrides = {}) {
 }
 
 describe("booking service", () => {
+	it("delegates public booking slot listing filters to the repository", async () => {
+		const bookingRepository = createRepository()
+		const service = createBookingService({ bookingRepository })
+		const filters = {
+			date: "2026-07-01",
+			stylist_key: "fatima",
+			taken: false,
+			limit: 25,
+			offset: 5,
+		}
+
+		const result = await service.listPublicBookingSlots(filters)
+
+		expect(result).toEqual([baseSlot])
+		expect(bookingRepository.listPublicBookingSlots).toHaveBeenCalledWith(filters)
+	})
+
 	it("creates a confirmed booking and marks an available slot taken", async () => {
 		const bookingRepository = createRepository()
 		const notificationService = createNotificationServiceMock()
@@ -438,6 +459,98 @@ describe("booking service", () => {
 		expect(bookingRepository.updateBooking).not.toHaveBeenCalled()
 	})
 
+	it("lets a booking owner read queue info through booking.waitlist_id", async () => {
+		const waitlistedBooking = {
+			...baseBooking,
+			status: BOOKING_STATUSES.WAITLISTED,
+			waitlist_id: baseWaitlistEntry.id,
+		}
+		const bookingRepository = createRepository({
+			findBookingById: vi.fn().mockResolvedValue(waitlistedBooking),
+			findWaitlistById: vi.fn().mockResolvedValue(baseWaitlistEntry),
+		})
+		const service = createBookingService({ bookingRepository })
+
+		const result = await service.getWaitlistQueueByBooking(
+			customerUser,
+			waitlistedBooking.id,
+		)
+
+		expect(result).toMatchObject({
+			active: true,
+			position: 1,
+			label: "1st",
+			size: 1,
+			bookingId: waitlistedBooking.id,
+			waitlistId: baseWaitlistEntry.id,
+		})
+		expect(bookingRepository.findWaitlistById).toHaveBeenCalledWith(
+			baseWaitlistEntry.id,
+		)
+		expect(bookingRepository.findWaitlistByBookingId).not.toHaveBeenCalled()
+	})
+
+	it("rejects booking-based waitlist queue lookup for non-owners", async () => {
+		const bookingRepository = createRepository({
+			findBookingById: vi.fn().mockResolvedValue({
+				...baseBooking,
+				user_id: otherUser.id,
+				waitlist_id: baseWaitlistEntry.id,
+			}),
+		})
+		const service = createBookingService({ bookingRepository })
+
+		await expect(
+			service.getWaitlistQueueByBooking(customerUser, baseBooking.id),
+		).rejects.toMatchObject({
+			code: "booking_access_denied",
+			statusCode: 403,
+		})
+		expect(bookingRepository.findWaitlistById).not.toHaveBeenCalled()
+		expect(bookingRepository.findWaitlistByBookingId).not.toHaveBeenCalled()
+	})
+
+	it("returns 404 when a booking-linked waitlist entry is missing", async () => {
+		const bookingRepository = createRepository({
+			findBookingById: vi.fn().mockResolvedValue({
+				...baseBooking,
+				status: BOOKING_STATUSES.WAITLISTED,
+				waitlist_id: baseWaitlistEntry.id,
+			}),
+			findWaitlistById: vi.fn().mockResolvedValue(null),
+		})
+		const service = createBookingService({ bookingRepository })
+
+		await expect(
+			service.getWaitlistQueueByBooking(customerUser, baseBooking.id),
+		).rejects.toMatchObject({
+			code: "waitlist_entry_not_found",
+			statusCode: 404,
+		})
+	})
+
+	it("finds queue info by booking_id when booking.waitlist_id is absent", async () => {
+		const bookingRepository = createRepository({
+			findBookingById: vi.fn().mockResolvedValue({
+				...baseBooking,
+				status: BOOKING_STATUSES.WAITLISTED,
+				waitlist_id: null,
+			}),
+			findWaitlistByBookingId: vi.fn().mockResolvedValue(baseWaitlistEntry),
+		})
+		const service = createBookingService({ bookingRepository })
+
+		const result = await service.getWaitlistQueueByBooking(
+			customerUser,
+			baseBooking.id,
+		)
+
+		expect(result.waitlistId).toBe(baseWaitlistEntry.id)
+		expect(bookingRepository.findWaitlistByBookingId).toHaveBeenCalledWith(
+			baseBooking.id,
+		)
+	})
+
 	it("releases expired taken slots after the Firebase two-hour grace window", async () => {
 		const nowIso = "2026-07-01T09:00:00.000Z"
 		const expiredSlot = {
@@ -519,6 +632,139 @@ describe("booking service", () => {
 			}),
 		])
 		expect(bookingRepository.updateBooking).not.toHaveBeenCalled()
+		expect(bookingRepository.releaseSlot).not.toHaveBeenCalled()
+	})
+
+	it("releases an expired slot resolved from a legacy slot ID time variant", async () => {
+		const nowIso = "2026-07-01T09:00:00.000Z"
+		const expiredSlot = {
+			...baseSlot,
+			taken: true,
+			booking_id: baseBooking.id,
+			user_id: customerUser.id,
+			slot_time: "09:00",
+			starts_at: "2026-07-01T06:00:00.000Z",
+			stylist_key: "fatima",
+		}
+		const confirmedBooking = {
+			...baseBooking,
+			status: BOOKING_STATUSES.CONFIRMED,
+			slot_id: expiredSlot.id,
+			starts_at: expiredSlot.starts_at,
+		}
+		const bookingRepository = createRepository({
+			listSlotsByDateAndStylist: vi.fn().mockResolvedValue([expiredSlot]),
+			findBookingById: vi.fn().mockResolvedValue(confirmedBooking),
+			updateBooking: vi.fn(async (_bookingId, values) => ({
+				...confirmedBooking,
+				...values,
+			})),
+		})
+		const notificationService = createNotificationServiceMock()
+		const service = createBookingService({
+			bookingRepository,
+			notificationService,
+		})
+
+		const result =
+			await service.releaseExpiredBookingSlotForClientByLegacyId(
+				customerUser,
+				"2026-07-01__fatima__900AM",
+				{ nowIso },
+			)
+
+		expect(result).toMatchObject({
+			released: true,
+			reason: BOOKING_STATUSES.NO_SHOW,
+			bookingId: confirmedBooking.id,
+			nextBookingStatus: BOOKING_STATUSES.NO_SHOW,
+		})
+		expect(bookingRepository.listSlotsByDateAndStylist).toHaveBeenCalledWith(
+			expect.objectContaining({
+				slot_date: "2026-07-01",
+				stylist_key: "fatima",
+			}),
+		)
+		expect(bookingRepository.updateBooking).toHaveBeenCalledWith(
+			confirmedBooking.id,
+			expect.objectContaining({ status: BOOKING_STATUSES.NO_SHOW }),
+		)
+		expect(bookingRepository.releaseSlot).toHaveBeenCalledWith(expiredSlot.id, {
+			release_reason: BOOKING_STATUSES.NO_SHOW,
+		})
+		expect(
+			notificationService.queueWaitlistSlotOpenNotifications,
+		).toHaveBeenCalled()
+	})
+
+	it("rejects malformed legacy slot IDs before lookup", async () => {
+		const bookingRepository = createRepository()
+		const service = createBookingService({ bookingRepository })
+
+		await expect(
+			service.releaseExpiredBookingSlotForClientByLegacyId(
+				customerUser,
+				"not-a-legacy-slot-id",
+			),
+		).rejects.toMatchObject({
+			code: "legacy_booking_slot_id_invalid",
+			statusCode: 400,
+		})
+		expect(bookingRepository.listSlotsByDateAndStylist).not.toHaveBeenCalled()
+	})
+
+	it("returns 404 when a legacy slot ID has no matching slot", async () => {
+		const bookingRepository = createRepository({
+			listSlotsByDateAndStylist: vi.fn().mockResolvedValue([
+				{
+					...baseSlot,
+					slot_time: "10:00 AM",
+					stylist_key: "fatima",
+				},
+			]),
+		})
+		const service = createBookingService({ bookingRepository })
+
+		await expect(
+			service.releaseExpiredBookingSlotForClientByLegacyId(
+				customerUser,
+				"2026-07-01__fatima__9:00 AM",
+			),
+		).rejects.toMatchObject({
+			code: "booking_slot_not_found",
+			statusCode: 404,
+		})
+	})
+
+	it("does not release a legacy slot before the expired-slot grace window", async () => {
+		const nowIso = "2026-07-01T07:30:00.000Z"
+		const notYetExpiredSlot = {
+			...baseSlot,
+			taken: true,
+			booking_id: baseBooking.id,
+			user_id: customerUser.id,
+			slot_time: "9 AM",
+			starts_at: "2026-07-01T06:00:00.000Z",
+			stylist_key: "fatima",
+		}
+		const bookingRepository = createRepository({
+			listSlotsByDateAndStylist: vi
+				.fn()
+				.mockResolvedValue([notYetExpiredSlot]),
+		})
+		const service = createBookingService({ bookingRepository })
+
+		const result =
+			await service.releaseExpiredBookingSlotForClientByLegacyId(
+				customerUser,
+				"2026-07-01__fatima__9:00AM",
+				{ nowIso },
+			)
+
+		expect(result).toMatchObject({
+			released: false,
+			reason: "not-expired",
+		})
 		expect(bookingRepository.releaseSlot).not.toHaveBeenCalled()
 	})
 

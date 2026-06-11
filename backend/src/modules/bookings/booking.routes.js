@@ -6,6 +6,7 @@ const bookingController = require("./booking.controller")
 
 const router = express.Router()
 
+router.get("/api/v1/booking-slots", bookingController.listPublicBookingSlots)
 router.post("/api/v1/bookings", requireAuth, bookingController.createBooking)
 router.get(
 	"/api/v1/bookings/me",
@@ -26,6 +27,16 @@ router.get(
 	"/api/v1/waitlist/:waitlistId/queue",
 	requireAuth,
 	bookingController.getWaitlistQueue,
+)
+router.get(
+	"/api/v1/bookings/:bookingId/waitlist-queue",
+	requireAuth,
+	bookingController.getWaitlistQueueByBooking,
+)
+router.post(
+	"/api/v1/booking-slots/legacy/:legacySlotId/release-expired",
+	requireAuth,
+	bookingController.releaseExpiredBookingSlotByLegacyId,
 )
 router.post(
 	"/api/v1/booking-slots/:slotId/release-expired",

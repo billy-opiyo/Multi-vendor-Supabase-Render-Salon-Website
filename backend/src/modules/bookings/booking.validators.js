@@ -104,9 +104,31 @@ const bookingSlotParamsSchema = z.object({
 	slotId: z.string().uuid(),
 })
 
+const legacyBookingSlotParamsSchema = z.object({
+	legacySlotId: z.string().trim().min(1).max(180),
+})
+
 const waitlistParamsSchema = z.object({
 	waitlistId: z.string().uuid(),
 })
+
+const bookingSlotListQuerySchema = z
+	.object({
+		tenant_id: nullableUuid,
+		date: dateSchema.optional(),
+		from: dateSchema.optional(),
+		to: dateSchema.optional(),
+		stylist_key: nullableTrimmedString(80),
+		taken: z
+			.enum(["true", "false"])
+			.optional()
+			.transform((value) =>
+				value === undefined ? undefined : value === "true",
+			),
+		limit: z.coerce.number().int().min(1).max(500).default(300),
+		offset: z.coerce.number().int().min(0).default(0),
+	})
+	.strict()
 
 const listQuerySchema = z
 	.object({
@@ -162,12 +184,14 @@ function normalizeBookingPayload(payload = {}) {
 module.exports = {
 	adminBookingReleaseSlotSchema,
 	adminBookingStatusUpdateSchema,
+	bookingSlotListQuerySchema,
 	adminWaitlistStatusUpdateSchema,
 	bookingCancelSchema,
 	bookingCreateSchema,
 	bookingParamsSchema,
 	bookingRescheduleSchema,
 	bookingSlotParamsSchema,
+	legacyBookingSlotParamsSchema,
 	listQuerySchema,
 	normalizeBookingPayload,
 	waitlistListQuerySchema,

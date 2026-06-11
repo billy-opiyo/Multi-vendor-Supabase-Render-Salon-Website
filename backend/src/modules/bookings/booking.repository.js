@@ -8,6 +8,9 @@ const BOOKING_SELECT =
 const BOOKING_SLOT_SELECT =
 	"id, tenant_id, slot_date, slot_time, starts_at, ends_at, stylist_id, stylist_key, taken, booking_id, user_id, release_reason, released_at, metadata, created_at, updated_at"
 
+const PUBLIC_BOOKING_SLOT_SELECT =
+	"id, tenant_id, slot_date, slot_time, starts_at, ends_at, stylist_id, stylist_key, taken, created_at, updated_at"
+
 const WAITLIST_SELECT =
 	"id, tenant_id, user_id, booking_id, preferred_slot_id, preferred_date, preferred_time, service, service_id, stylist, stylist_id, status, queue_position, queue_size, notification_channel, notified_at, metadata, created_at, updated_at"
 
@@ -72,6 +75,76 @@ function createBookingRepository(supabase) {
 			)
 
 			return data
+		},
+
+		async listPublicBookingSlots(filters = {}) {
+			let query = supabase
+				.from("booking_slots")
+				.select(PUBLIC_BOOKING_SLOT_SELECT)
+				.order("starts_at", { ascending: true })
+				.range(
+					filters.offset || 0,
+					(filters.offset || 0) + (filters.limit || 300) - 1,
+				)
+
+			query = applyNullableTenantFilter(query, filters.tenant_id)
+
+			if (filters.date) {
+				query = query.eq("slot_date", filters.date)
+			} else {
+				if (filters.from) query = query.gte("slot_date", filters.from)
+				if (filters.to) query = query.lte("slot_date", filters.to)
+				if (!filters.from && !filters.to) {
+					query = query.gte("starts_at", new Date().toISOString())
+				}
+			}
+
+			if (filters.stylist_key) {
+				query = query.ilike("stylist_key", filters.stylist_key)
+			}
+
+			if (filters.taken !== undefined) {
+				query = query.eq("taken", filters.taken)
+			} else {
+				query = query.eq("taken", true)
+			}
+
+			const { data, error } = await query
+
+			throwRepositoryError(
+				error,
+				500,
+				"booking_slot_list_failed",
+				"Unable to list booking slots.",
+			)
+
+			return data || []
+		},
+
+		async listSlotsByDateAndStylist({
+			slot_date,
+			stylist_key,
+			tenant_id,
+		} = {}) {
+			let query = supabase
+				.from("booking_slots")
+				.select(BOOKING_SLOT_SELECT)
+				.eq("slot_date", slot_date)
+				.ilike("stylist_key", stylist_key)
+				.order("starts_at", { ascending: true })
+
+			query = applyNullableTenantFilter(query, tenant_id)
+
+			const { data, error } = await query
+
+			throwRepositoryError(
+				error,
+				500,
+				"booking_slot_lookup_failed",
+				"Unable to load booking slots.",
+			)
+
+			return data || []
 		},
 
 		async createSlot(values) {
@@ -179,6 +252,23 @@ function createBookingRepository(supabase) {
 				500,
 				"booking_lookup_failed",
 				"Unable to load booking.",
+			)
+
+			return data
+		},
+
+		async findWaitlistByBookingId(bookingId) {
+			const { data, error } = await supabase
+				.from("waitlist_entries")
+				.select(WAITLIST_SELECT)
+				.eq("booking_id", bookingId)
+				.maybeSingle()
+
+			throwRepositoryError(
+				error,
+				500,
+				"waitlist_lookup_failed",
+				"Unable to load waitlist entry.",
 			)
 
 			return data
@@ -501,6 +591,7 @@ function createBookingRepository(supabase) {
 module.exports = {
 	BOOKING_SELECT,
 	BOOKING_SLOT_SELECT,
+	PUBLIC_BOOKING_SLOT_SELECT,
 	WAITLIST_SELECT,
 	createBookingRepository,
 	isUniqueViolation,

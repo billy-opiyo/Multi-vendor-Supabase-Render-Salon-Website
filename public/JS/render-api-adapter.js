@@ -193,6 +193,12 @@
 		return encodeURIComponent(String(value || "").trim())
 	}
 
+	function isUuid(value = "") {
+		return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+			String(value || "").trim(),
+		)
+	}
+
 	function normalizeCloudinarySignPayload(payload = {}) {
 		const source = normalizePayload(payload)
 		return {
@@ -302,10 +308,14 @@
 		},
 
 		async clientReleaseExpiredBookingSlot(payload = {}) {
-			const slotId = encodeSegment(payload.slotId || payload.slot_id)
+			const rawSlotId = String(payload.slotId || payload.slot_id || "").trim()
+			const slotId = encodeSegment(rawSlotId)
 			if (!slotId) return null
+			const routePath = isUuid(rawSlotId)
+				? `/api/v1/booking-slots/${slotId}/release-expired`
+				: `/api/v1/booking-slots/legacy/${slotId}/release-expired`
 			return dataOrPayload(
-				await request(`/api/v1/booking-slots/${slotId}/release-expired`, {
+				await request(routePath, {
 					method: "POST",
 					body: payload,
 				}),
@@ -313,12 +323,16 @@
 		},
 
 		async clientGetWaitlistQueueInfo(payload = {}) {
+			const bookingId = encodeSegment(payload.bookingId || payload.booking_id)
 			const waitlistId = encodeSegment(
 				payload.waitlistId || payload.waitlist_id,
 			)
-			if (!waitlistId) return null
+			if (!bookingId && !waitlistId) return null
+			const routePath = bookingId
+				? `/api/v1/bookings/${bookingId}/waitlist-queue`
+				: `/api/v1/waitlist/${waitlistId}/queue`
 			return dataOrPayload(
-				await request(`/api/v1/waitlist/${waitlistId}/queue`, {
+				await request(routePath, {
 					method: "GET",
 				}),
 			)

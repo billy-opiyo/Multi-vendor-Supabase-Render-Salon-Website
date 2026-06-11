@@ -130,6 +130,109 @@ function buildStartsAt(appointmentDate, appointmentTime) {
 	return parsed.toISOString()
 }
 
+function normalizeLegacySlotTimeKey(value = "") {
+	const compact = String(value || "")
+		.trim()
+		.toLowerCase()
+		.replace(/\s+/g, "")
+		.replace(/:/g, "")
+		.replace(/\./g, "")
+	const parsedMinutes = parseLegacySlotTimeKeyToMinutes(compact)
+	return parsedMinutes === null ? compact : `minutes:${parsedMinutes}`
+}
+
+function parseLegacySlotTimeKeyToMinutes(compactValue = "") {
+	const match = String(compactValue || "").match(
+		/^(\d{1,2})(\d{2})?(am|pm)?$/,
+	)
+	if (!match) return null
+
+	let hours = Number(match[1])
+	const minutes = match[2] === undefined ? 0 : Number(match[2])
+	const meridiem = match[3]
+
+	if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return null
+	if (minutes < 0 || minutes > 59) return null
+
+	if (meridiem) {
+		if (hours < 1 || hours > 12) return null
+		if (meridiem === "pm" && hours !== 12) hours += 12
+		if (meridiem === "am" && hours === 12) hours = 0
+	} else if (hours < 0 || hours > 23) {
+		return null
+	}
+
+	return hours * 60 + minutes
+}
+
+function normalizeLegacyStylistKey(value = "") {
+	const raw = String(value || "")
+		.trim()
+		.toLowerCase()
+	if (!raw || raw === "any" || raw === "any available" || raw === "any-available") {
+		return DEFAULT_STYLIST_KEY
+	}
+	return slugifyStylistKey(raw)
+}
+
+function parseLegacySlotId(legacySlotId = "") {
+	const [slotDate, stylistKey, ...timeParts] = String(legacySlotId || "")
+		.trim()
+		.split("__")
+	const timeKey = timeParts.join("__")
+
+	if (!slotDate || !stylistKey || !timeKey) {
+		throw new ApiError(
+			400,
+			"legacy_booking_slot_id_invalid",
+			"Legacy booking slot identifiers must use date__stylist__time format.",
+		)
+	}
+
+	return {
+		slot_date: slotDate,
+		stylist_key: normalizeLegacyStylistKey(stylistKey),
+		time_key: normalizeLegacySlotTimeKey(timeKey),
+	}
+}
+
+function formatOrdinalPosition(value = 0) {
+	const position = Math.max(0, Number(value || 0))
+	if (!position) return ""
+	const mod100 = position % 100
+	if (mod100 >= 11 && mod100 <= 13) return `${position}th`
+
+	switch (position % 10) {
+		case 1:
+			return `${position}st`
+		case 2:
+			return `${position}nd`
+		case 3:
+			return `${position}rd`
+		default:
+			return `${position}th`
+	}
+}
+
+function buildWaitlistQueueInfo(waitlistEntry = {}, queue = []) {
+	const active = WAITLIST_QUEUE_STATUSES.includes(waitlistEntry.status)
+	const position = active
+		? Number(waitlistEntry.queue_position || 0) || null
+		: null
+	const size = active ? Number(waitlistEntry.queue_size || queue.length || 0) || null : null
+
+	return {
+		active: Boolean(active && position),
+		position,
+		label: position ? formatOrdinalPosition(position) : "",
+		size,
+		status: waitlistEntry.status,
+		slotId: waitlistEntry.preferred_slot_id || "",
+		waitlistId: waitlistEntry.id || "",
+		source: "render-waitlist-queue",
+	}
+}
+
 function addMinutes(isoTimestamp, minutesToAdd) {
 	const date = new Date(isoTimestamp)
 	return new Date(date.getTime() + minutesToAdd * 60 * 1000).toISOString()
@@ -764,6 +867,10 @@ function createBookingService({ bookingRepository, notificationService } = {}) {
 	}
 
 	return {
+		async listPublicBookingSlots(filters = {}) {
+			return repository.listPublicBookingSlots(filters)
+		},
+
 		async createBooking(authUser, payload) {
 			assertAuthenticatedUser(authUser)
 
@@ -1055,6 +1162,43 @@ function createBookingService({ bookingRepository, notificationService } = {}) {
 				queue.find((entry) => entry.id === waitlistEntry.id) || waitlistEntry
 
 			return {
+				...buildWaitlistQueueInfo(refreshedWaitlistEntry, queue),
+				waitlistEntry: refreshedWaitlistEntry,
+				queue,
+			}
+		},
+
+		async getWaitlistQueueByBooking(authUser, bookingId) {
+			assertAuthenticatedUser(authUser)
+
+			const booking = await repository.findBookingById(bookingId)
+
+			if (!booking) {
+				throw new ApiError(404, "booking_not_found", "Booking was not found.")
+			}
+
+			assertBookingOwnership(booking, authUser)
+
+			const waitlistEntry = booking.waitlist_id
+				? await repository.findWaitlistById(booking.waitlist_id)
+				: await repository.findWaitlistByBookingId(booking.id)
+
+			if (!waitlistEntry) {
+				throw new ApiError(
+					404,
+					"waitlist_entry_not_found",
+					"Waitlist entry was not found for this booking.",
+				)
+			}
+
+			const queue = await recalculateWaitlistQueue(waitlistEntry)
+			const refreshedWaitlistEntry =
+				queue.find((entry) => entry.id === waitlistEntry.id) || waitlistEntry
+
+			return {
+				...buildWaitlistQueueInfo(refreshedWaitlistEntry, queue),
+				bookingId: booking.id,
+				booking,
 				waitlistEntry: refreshedWaitlistEntry,
 				queue,
 			}
@@ -1079,6 +1223,38 @@ function createBookingService({ bookingRepository, notificationService } = {}) {
 					options.graceMinutes || DEFAULT_EXPIRED_SLOT_GRACE_MINUTES,
 				nowIso: options.nowIso,
 				source: "client",
+			})
+		},
+
+		async releaseExpiredBookingSlotForClientByLegacyId(
+			authUser,
+			legacySlotId,
+			options = {},
+		) {
+			assertAuthenticatedUser(authUser)
+
+			const legacy = parseLegacySlotId(legacySlotId)
+			const slots = await repository.listSlotsByDateAndStylist(legacy)
+			const slot = slots.find(
+				(item) =>
+					normalizeLegacySlotTimeKey(item.slot_time) === legacy.time_key,
+			)
+
+			if (!slot) {
+				throw new ApiError(
+					404,
+					"booking_slot_not_found",
+					"Booking slot was not found.",
+				)
+			}
+
+			return releaseExpiredSlotDocumentWorkflow({
+				slot,
+				actorUserId: authUser.id,
+				graceMinutes:
+					options.graceMinutes || DEFAULT_EXPIRED_SLOT_GRACE_MINUTES,
+				nowIso: options.nowIso,
+				source: "client_legacy_slot_id",
 			})
 		},
 

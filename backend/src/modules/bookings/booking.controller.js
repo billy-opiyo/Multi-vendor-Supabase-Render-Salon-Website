@@ -5,11 +5,13 @@ const {
 	adminBookingReleaseSlotSchema,
 	adminBookingStatusUpdateSchema,
 	adminWaitlistStatusUpdateSchema,
+	bookingSlotListQuerySchema,
 	bookingCancelSchema,
 	bookingCreateSchema,
 	bookingParamsSchema,
 	bookingRescheduleSchema,
 	bookingSlotParamsSchema,
+	legacyBookingSlotParamsSchema,
 	listQuerySchema,
 	normalizeBookingPayload,
 	waitlistListQuerySchema,
@@ -45,6 +47,21 @@ const listOwnBookings = asyncHandler(async (req, res) => {
 		ok: true,
 		data: {
 			bookings,
+		},
+	})
+})
+
+const listPublicBookingSlots = asyncHandler(async (req, res) => {
+	const filters = parseRequest(bookingSlotListQuerySchema, req.query, {
+		message: "Invalid booking slot filters.",
+	})
+	const bookingSlots =
+		await createBookingService().listPublicBookingSlots(filters)
+
+	res.status(200).json({
+		ok: true,
+		data: {
+			bookingSlots,
 		},
 	})
 })
@@ -104,6 +121,21 @@ const getWaitlistQueue = asyncHandler(async (req, res) => {
 	})
 })
 
+const getWaitlistQueueByBooking = asyncHandler(async (req, res) => {
+	const params = parseRequest(bookingParamsSchema, req.params, {
+		message: "Invalid booking identifier.",
+	})
+	const result = await createBookingService().getWaitlistQueueByBooking(
+		req.auth.user,
+		params.bookingId,
+	)
+
+	res.status(200).json({
+		ok: true,
+		data: result,
+	})
+})
+
 const releaseExpiredBookingSlot = asyncHandler(async (req, res) => {
 	const params = parseRequest(bookingSlotParamsSchema, req.params, {
 		message: "Invalid booking slot identifier.",
@@ -118,6 +150,25 @@ const releaseExpiredBookingSlot = asyncHandler(async (req, res) => {
 		ok: true,
 		data: {
 			slotId: params.slotId,
+			...result,
+		},
+	})
+})
+
+const releaseExpiredBookingSlotByLegacyId = asyncHandler(async (req, res) => {
+	const params = parseRequest(legacyBookingSlotParamsSchema, req.params, {
+		message: "Invalid legacy booking slot identifier.",
+	})
+	const result =
+		await createBookingService().releaseExpiredBookingSlotForClientByLegacyId(
+			req.auth.user,
+			params.legacySlotId,
+		)
+
+	res.status(200).json({
+		ok: true,
+		data: {
+			legacySlotId: params.legacySlotId,
 			...result,
 		},
 	})
@@ -236,13 +287,16 @@ module.exports = {
 	cancelOwnBooking,
 	createBooking,
 	getWaitlistQueue,
+	getWaitlistQueueByBooking,
 	listAdminBookings,
 	listAdminWaitlist,
 	listOwnBookings,
+	listPublicBookingSlots,
 	moveAdminWaitlistToConfirmed,
-	releaseExpiredBookingSlot,
 	releaseAdminBookingSlot,
+	releaseExpiredBookingSlot,
+	releaseExpiredBookingSlotByLegacyId,
 	rescheduleOwnBooking,
-	updateAdminWaitlistStatus,
 	updateAdminBookingStatus,
+	updateAdminWaitlistStatus,
 }

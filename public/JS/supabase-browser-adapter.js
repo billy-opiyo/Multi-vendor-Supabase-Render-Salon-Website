@@ -524,6 +524,49 @@
 		}
 	}
 
+	function normalizeLegacyBookingSlotTimeKey(value = "") {
+		return String(value || "")
+			.trim()
+			.toLowerCase()
+			.replace(/\s+/g, "")
+			.replace(/:/g, "")
+			.replace(/\./g, "")
+	}
+
+	function buildLegacyBookingSlotId({ date = "", stylistKey = "any", time = "" } = {}) {
+		const safeDate = String(date || "").trim()
+		const safeStylist = String(stylistKey || "any").trim() || "any"
+		const safeTime = normalizeLegacyBookingSlotTimeKey(time)
+		return safeDate && safeStylist && safeTime
+			? `${safeDate}__${safeStylist}__${safeTime}`
+			: ""
+	}
+
+	function mapBookingSlot(row = {}) {
+		const data = camelizeRow(row)
+		const date = data.slotDate || data.slot_date || data.date || ""
+		const time = data.slotTime || data.slot_time || data.time || ""
+		const stylistKey = data.stylistKey || data.stylist_key || data.stylist || "any"
+		const legacySlotId = buildLegacyBookingSlotId({ date, stylistKey, time })
+		const supabaseSlotId = String(data.id || row.id || "").trim()
+
+		return {
+			...data,
+			id: legacySlotId || supabaseSlotId,
+			legacySlotId,
+			slotId: supabaseSlotId,
+			supabaseSlotId,
+			date,
+			time,
+			stylistKey,
+			bookingId: data.bookingId || data.booking_id || "",
+			uid: data.userId || data.user_id || "",
+			taken: data.taken === true,
+			createdAt: data.createdAt || data.created_at,
+			updatedAt: data.updatedAt || data.updated_at,
+		}
+	}
+
 	function mapWaitlist(row = {}) {
 		const data = camelizeRow(row)
 		const metadata = data.metadata || {}
@@ -640,6 +683,13 @@
 			map: mapBooking,
 			auth: () => true,
 		},
+		bookingSlots: {
+			path: () => "/api/v1/booking-slots",
+			key: "bookingSlots",
+			map: mapBookingSlot,
+			auth: () => false,
+			pollIntervalMs: 5000,
+		},
 		waitlist: {
 			path: () => "/api/v1/admin/waitlist",
 			key: "waitlistEntries",
@@ -705,7 +755,10 @@
 	}
 
 	function shouldPollRemoteCollection(collectionName) {
-		return isAdminPage() && Boolean(remoteCollections[collectionName])
+		return (
+			Boolean(remoteCollections[collectionName]) &&
+			(isAdminPage() || collectionName === "bookingSlots")
+		)
 	}
 
 	function getRemoteRefreshInterval(collectionName) {
@@ -1100,6 +1153,27 @@
 		}
 	}
 
+	function dispatchRenderSyncError({ collectionName, id, operation, error } = {}) {
+		const detail = {
+			collectionName: String(collectionName || "").trim(),
+			documentId: String(id || "").trim(),
+			operation: String(operation || "").trim(),
+			message: error?.message || "Render mutation sync failed.",
+			code: error?.code || "render_sync_failed",
+			status: error?.status || 0,
+			createdAt: nowIso(),
+		}
+
+		state.lastRenderSyncError = detail
+		try {
+			window.dispatchEvent(
+				new CustomEvent("appservices:render-sync-error", { detail }),
+			)
+		} catch (_error) {
+			// Older browsers/tests may not support CustomEvent construction here.
+		}
+	}
+
 	async function syncRemoteMutation(collectionName, id, data, operation) {
 		if (!window.RenderApi?.isConfigured?.()) return
 		const refreshAfterMutation = (...collectionNames) =>
@@ -1256,6 +1330,7 @@
 				`Render mutation sync skipped/failed for ${collectionName}:`,
 				error,
 			)
+			dispatchRenderSyncError({ collectionName, id, operation, error })
 		}
 	}
 
