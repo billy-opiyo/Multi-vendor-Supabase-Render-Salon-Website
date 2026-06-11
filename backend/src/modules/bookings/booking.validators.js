@@ -3,6 +3,7 @@ const { z } = require("zod")
 const {
 	BOOKING_STATUS_VALUES,
 	TERMINAL_BOOKING_STATUSES,
+	WAITLIST_STATUS_VALUES,
 } = require("./booking.constants")
 
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, {
@@ -14,17 +15,14 @@ const timeSchema = z.string().trim().min(1).max(32)
 const nullableUuid = z.string().uuid().nullable().optional()
 
 const nullableTrimmedString = (maxLength) =>
-	z.preprocess(
-		(value) => {
-			if (typeof value !== "string") {
-				return value
-			}
+	z.preprocess((value) => {
+		if (typeof value !== "string") {
+			return value
+		}
 
-			const trimmed = value.trim()
-			return trimmed.length === 0 ? null : trimmed
-		},
-		z.string().min(1).max(maxLength).nullable().optional(),
-	)
+		const trimmed = value.trim()
+		return trimmed.length === 0 ? null : trimmed
+	}, z.string().min(1).max(maxLength).nullable().optional())
 
 const trimmedString = (maxLength) => z.string().trim().min(1).max(maxLength)
 
@@ -90,6 +88,14 @@ const adminBookingReleaseSlotSchema = z
 	})
 	.strict()
 
+const adminWaitlistStatusUpdateSchema = z
+	.object({
+		status: z.enum(WAITLIST_STATUS_VALUES),
+		reason: nullableTrimmedString(240),
+		metadata: metadataSchema,
+	})
+	.strict()
+
 const bookingParamsSchema = z.object({
 	bookingId: z.string().uuid(),
 })
@@ -140,7 +146,10 @@ function normalizeBookingPayload(payload = {}) {
 	const normalized = { ...payload }
 
 	for (const [camelKey, snakeKey] of Object.entries(FIELD_ALIASES)) {
-		if (normalized[camelKey] !== undefined && normalized[snakeKey] === undefined) {
+		if (
+			normalized[camelKey] !== undefined &&
+			normalized[snakeKey] === undefined
+		) {
 			normalized[snakeKey] = normalized[camelKey]
 		}
 
@@ -153,6 +162,7 @@ function normalizeBookingPayload(payload = {}) {
 module.exports = {
 	adminBookingReleaseSlotSchema,
 	adminBookingStatusUpdateSchema,
+	adminWaitlistStatusUpdateSchema,
 	bookingCancelSchema,
 	bookingCreateSchema,
 	bookingParamsSchema,

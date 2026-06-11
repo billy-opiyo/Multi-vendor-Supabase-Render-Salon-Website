@@ -4,6 +4,7 @@ const { createBookingService } = require("./booking.service")
 const {
 	adminBookingReleaseSlotSchema,
 	adminBookingStatusUpdateSchema,
+	adminWaitlistStatusUpdateSchema,
 	bookingCancelSchema,
 	bookingCreateSchema,
 	bookingParamsSchema,
@@ -107,10 +108,11 @@ const releaseExpiredBookingSlot = asyncHandler(async (req, res) => {
 	const params = parseRequest(bookingSlotParamsSchema, req.params, {
 		message: "Invalid booking slot identifier.",
 	})
-	const result = await createBookingService().releaseExpiredBookingSlotForClient(
-		req.auth.user,
-		params.slotId,
-	)
+	const result =
+		await createBookingService().releaseExpiredBookingSlotForClient(
+			req.auth.user,
+			params.slotId,
+		)
 
 	res.status(200).json({
 		ok: true,
@@ -179,13 +181,34 @@ const listAdminWaitlist = asyncHandler(async (req, res) => {
 	const filters = parseRequest(waitlistListQuerySchema, req.query, {
 		message: "Invalid admin waitlist list filters.",
 	})
-	const waitlistEntries = await createBookingService().listAdminWaitlist(filters)
+	const waitlistEntries =
+		await createBookingService().listAdminWaitlist(filters)
 
 	res.status(200).json({
 		ok: true,
 		data: {
 			waitlistEntries,
 		},
+	})
+})
+
+const updateAdminWaitlistStatus = asyncHandler(async (req, res) => {
+	const params = parseRequest(waitlistParamsSchema, req.params, {
+		message: "Invalid waitlist identifier.",
+	})
+	const payload = parseRequest(
+		adminWaitlistStatusUpdateSchema,
+		normalizeBookingPayload(req.body),
+	)
+	const result = await createBookingService().updateWaitlistStatusAsAdmin(
+		req.admin,
+		params.waitlistId,
+		payload,
+	)
+
+	res.status(200).json({
+		ok: true,
+		data: result,
 	})
 })
 
@@ -220,5 +243,6 @@ module.exports = {
 	releaseExpiredBookingSlot,
 	releaseAdminBookingSlot,
 	rescheduleOwnBooking,
+	updateAdminWaitlistStatus,
 	updateAdminBookingStatus,
 }

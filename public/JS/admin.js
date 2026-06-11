@@ -1735,7 +1735,9 @@ async function callAdminMoveWaitlistBookingToConfirmedAction(payload = {}) {
 		"adminMoveWaitlistBookingToConfirmed",
 	)
 	const response = await callable(payload)
-	return response?.data || { ok: true }
+	const data = response?.data || { ok: true }
+	await refreshAdminActionCollections(["bookings", "waitlist"])
+	return data
 }
 
 async function callAdminUpdateBookingStatusAndReleaseSlotAction(payload = {}) {
@@ -1751,7 +1753,105 @@ async function callAdminUpdateBookingStatusAndReleaseSlotAction(payload = {}) {
 		"adminUpdateBookingStatusAndReleaseSlot",
 	)
 	const response = await callable(payload)
-	return response?.data || { ok: true }
+	const data = response?.data || { ok: true }
+	await refreshAdminActionCollections(["bookings", "waitlist"])
+	return data
+}
+
+function getAdminCollectionRefreshLimit(collectionName = "") {
+	const limits = {
+		bookings: 100,
+		waitlist: 300,
+		reviews: 300,
+		contactMessages: 300,
+		galleryStyles: 200,
+		blogs: 300,
+	}
+	return limits[collectionName] || 300
+}
+
+async function loadAdminCollectionDocs(collectionName = "") {
+	if (!db || !collectionName) return []
+	const snapshot = await db
+		.collection(collectionName)
+		.limit(getAdminCollectionRefreshLimit(collectionName))
+		.get()
+	return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+}
+
+function renderAdminRefreshedCollection(collectionName = "", docs = []) {
+	if (collectionName === "bookings") {
+		renderAdminBookings(docs)
+		return
+	}
+	if (collectionName === "waitlist") {
+		renderAdminWaitlist(docs)
+		return
+	}
+	if (collectionName === "reviews") {
+		renderAdminReviews(docs)
+		return
+	}
+	if (collectionName === "contactMessages") {
+		renderAdminContactMessages(docs)
+		return
+	}
+	if (collectionName === "galleryStyles") {
+		renderAdminGallery(docs)
+		return
+	}
+	if (collectionName === "blogs") {
+		renderAdminBlogs(docs)
+	}
+}
+
+async function refreshAdminActionCollections(collectionNames = []) {
+	if (!adminUnlocked || !db || !Array.isArray(collectionNames)) return
+	const uniqueNames = [...new Set(collectionNames.filter(Boolean))]
+	if (!uniqueNames.length) return
+
+	const results = await Promise.allSettled(
+		uniqueNames.map(async (collectionName) => ({
+			collectionName,
+			docs: await loadAdminCollectionDocs(collectionName),
+		})),
+	)
+	const docsByCollection = new Map()
+	results.forEach((result) => {
+		if (result.status === "fulfilled") {
+			docsByCollection.set(result.value.collectionName, result.value.docs)
+		} else {
+			console.warn("Admin action refresh failed:", result.reason)
+		}
+	})
+
+	const renderOrder = [
+		"bookings",
+		"waitlist",
+		"reviews",
+		"contactMessages",
+		"galleryStyles",
+		"blogs",
+	]
+	renderOrder
+		.filter((collectionName) => docsByCollection.has(collectionName))
+		.forEach((collectionName) => {
+			renderAdminRefreshedCollection(
+				collectionName,
+				docsByCollection.get(collectionName),
+			)
+		})
+}
+
+function getAdminReleasedSlotId(result = {}) {
+	const payload = result?.data || result || {}
+	return String(
+		payload.releasedSlotId ||
+			payload.released_slot_id ||
+			payload.releasedSlot?.id ||
+			payload.released_slot?.id ||
+			"",
+	).trim()
 }
 
 function normalizeManagedAdminUserDoc(doc = {}) {
@@ -7402,7 +7502,7 @@ function initializeAdminPanel() {
 				const result = await cancelBookingAndReleaseSlot(bookingId)
 				setAdminMessage(
 					"success",
-					result.releasedSlotId
+					getAdminReleasedSlotId(result)
 						? "✅ Booking cancelled and slot released successfully."
 						: "✅ Booking cancelled. No locked slot was found to release.",
 					"adminActionMessage",
@@ -7411,7 +7511,7 @@ function initializeAdminPanel() {
 				const result = await completeBookingAndReleaseSlot(bookingId)
 				setAdminMessage(
 					"success",
-					result.releasedSlotId
+					getAdminReleasedSlotId(result)
 						? "✅ Booking completed and slot released successfully."
 						: "✅ Booking completed. No locked slot was found to release.",
 					"adminActionMessage",
@@ -7676,7 +7776,7 @@ function initializeAdminPanel() {
 					const result = await cancelBookingAndReleaseSlot(bookingId)
 					setAdminMessage(
 						"success",
-						result.releasedSlotId
+						getAdminReleasedSlotId(result)
 							? "✅ Booking cancelled and slot released successfully."
 							: "✅ Booking cancelled. No locked slot was found to release.",
 						"adminScheduleMessage",
@@ -7685,7 +7785,7 @@ function initializeAdminPanel() {
 					const result = await completeBookingAndReleaseSlot(bookingId)
 					setAdminMessage(
 						"success",
-						result.releasedSlotId
+						getAdminReleasedSlotId(result)
 							? "✅ Booking completed and slot released successfully."
 							: "✅ Booking completed. No locked slot was found to release.",
 						"adminScheduleMessage",

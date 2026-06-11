@@ -165,8 +165,10 @@ function isExpiredSlot(slot = {}, { nowIso, graceMinutes } = {}) {
 }
 
 function getAutoReleaseStatusForBooking(booking = {}) {
-	if (booking.status === BOOKING_STATUSES.PENDING) return BOOKING_STATUSES.EXPIRED
-	if (booking.status === BOOKING_STATUSES.CONFIRMED) return BOOKING_STATUSES.NO_SHOW
+	if (booking.status === BOOKING_STATUSES.PENDING)
+		return BOOKING_STATUSES.EXPIRED
+	if (booking.status === BOOKING_STATUSES.CONFIRMED)
+		return BOOKING_STATUSES.NO_SHOW
 	return ""
 }
 
@@ -617,7 +619,9 @@ function createBookingService({ bookingRepository, notificationService } = {}) {
 		const releasedSlot = await repository.releaseSlot(slot.id, {
 			release_reason: releaseReason,
 		})
-		const queue = await recalculateWaitlistQueue(queueFiltersFromSlot(releasedSlot))
+		const queue = await recalculateWaitlistQueue(
+			queueFiltersFromSlot(releasedSlot),
+		)
 		await queueSlotOpenNotifications(queue, releasedSlot, {
 			source: `render_${source}_expired_slot_release`,
 			metadata: { reason: releaseReason },
@@ -788,7 +792,7 @@ function createBookingService({ bookingRepository, notificationService } = {}) {
 						authUser,
 						payload,
 						heldSlot,
-						BOOKING_STATUSES.PENDING,
+						BOOKING_STATUSES.CONFIRMED,
 					),
 				)
 			} catch (error) {
@@ -813,9 +817,9 @@ function createBookingService({ bookingRepository, notificationService } = {}) {
 			await insertStatusEvent(
 				booking,
 				null,
-				BOOKING_STATUSES.PENDING,
+				BOOKING_STATUSES.CONFIRMED,
 				authUser.id,
-				"booking_created",
+				"booking_confirmed_on_create",
 				{ source: "render_booking_api" },
 			)
 			await repository.insertActivity(
@@ -823,8 +827,9 @@ function createBookingService({ bookingRepository, notificationService } = {}) {
 					booking,
 					actorUserId: authUser.id,
 					activityType: "booking_created",
-					title: "Booking created",
-					description: "Customer created a booking request.",
+					title: "Booking confirmed",
+					description:
+						"Customer booked an available slot and it was confirmed automatically.",
 					metadata: {
 						slot_id: reservedSlot.id,
 					},
@@ -832,7 +837,7 @@ function createBookingService({ bookingRepository, notificationService } = {}) {
 			)
 			await queueBookingNotification(
 				booking,
-				NOTIFICATION_TEMPLATE_KEYS.BOOKING_CREATED,
+				NOTIFICATION_TEMPLATE_KEYS.BOOKING_CONFIRMED,
 				{
 					slot: reservedSlot,
 					source: "render_booking_api",
@@ -1060,7 +1065,11 @@ function createBookingService({ bookingRepository, notificationService } = {}) {
 
 			const slot = await repository.findSlotById(slotId)
 			if (!slot) {
-				throw new ApiError(404, "booking_slot_not_found", "Booking slot was not found.")
+				throw new ApiError(
+					404,
+					"booking_slot_not_found",
+					"Booking slot was not found.",
+				)
 			}
 
 			return releaseExpiredSlotDocumentWorkflow({
@@ -1079,6 +1088,96 @@ function createBookingService({ bookingRepository, notificationService } = {}) {
 
 		async listAdminWaitlist(filters = {}) {
 			return repository.listAdminWaitlist(filters)
+		},
+
+		async updateWaitlistStatusAsAdmin(actorAdmin, waitlistId, payload = {}) {
+			const waitlistEntry = await repository.findWaitlistById(waitlistId)
+
+			if (!waitlistEntry) {
+				throw new ApiError(
+					404,
+					"waitlist_entry_not_found",
+					"Waitlist entry was not found.",
+				)
+			}
+
+			const nextStatus = payload.status
+			const now = new Date().toISOString()
+			const waitlistValues = {
+				status: nextStatus,
+				metadata: {
+					...(waitlistEntry.metadata || {}),
+					...(payload.metadata || {}),
+					admin_status_updated_by: actorAdmin.user_id,
+					admin_status_updated_at: now,
+					previous_status: waitlistEntry.status,
+					reason: payload.reason || null,
+				},
+			}
+
+			if (!WAITLIST_QUEUE_STATUSES.includes(nextStatus)) {
+				waitlistValues.queue_position = null
+				waitlistValues.queue_size = null
+			}
+
+			const updatedWaitlistEntry = await repository.updateWaitlistEntry(
+				waitlistId,
+				waitlistValues,
+			)
+
+			let bookingResult = null
+			if (
+				nextStatus === WAITLIST_STATUSES.CANCELLED &&
+				waitlistEntry.booking_id
+			) {
+				const linkedBooking = await repository.findBookingById(
+					waitlistEntry.booking_id,
+				)
+				if (linkedBooking?.status === BOOKING_STATUSES.WAITLISTED) {
+					bookingResult = await updateBookingStatusWorkflow({
+						booking: linkedBooking,
+						toStatus: BOOKING_STATUSES.CANCELLED,
+						actorUserId: actorAdmin.user_id,
+						reason: payload.reason || "admin_waitlist_cancelled",
+						metadata: {
+							...(payload.metadata || {}),
+							waitlist_id: waitlistEntry.id,
+							source: "render_api",
+						},
+						releaseSlot: false,
+					})
+				}
+			}
+
+			const queue = await recalculateWaitlistQueue(updatedWaitlistEntry)
+			const refreshedWaitlistEntry =
+				queue.find((entry) => entry.id === updatedWaitlistEntry.id) ||
+				updatedWaitlistEntry
+
+			await repository.insertAuditLog({
+				tenant_id: refreshedWaitlistEntry.tenant_id,
+				actor_user_id: actorAdmin.user_id,
+				target_user_id: refreshedWaitlistEntry.user_id,
+				action: "waitlist.status_updated",
+				resource_type: "waitlist_entry",
+				resource_id: refreshedWaitlistEntry.id,
+				changes: {
+					status: {
+						before: waitlistEntry.status,
+						after: refreshedWaitlistEntry.status,
+					},
+				},
+				metadata: {
+					source: "render_api",
+					reason: payload.reason,
+				},
+			})
+
+			return {
+				waitlistEntry: refreshedWaitlistEntry,
+				booking: bookingResult?.booking || null,
+				queue,
+			}
 		},
 
 		async updateBookingStatusAsAdmin(actorAdmin, bookingId, payload = {}) {
@@ -1403,9 +1502,9 @@ function createBookingService({ bookingRepository, notificationService } = {}) {
 			const bookingCandidates =
 				typeof repository.listExpiredActiveBookings === "function"
 					? await repository.listExpiredActiveBookings({
-						cutoffIso,
-						limit: options.bookingLimit || options.limit || 50,
-					})
+							cutoffIso,
+							limit: options.bookingLimit || options.limit || 50,
+						})
 					: []
 			const released = []
 			const processedBookingIds = new Set()

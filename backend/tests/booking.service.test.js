@@ -202,7 +202,7 @@ function createNotificationServiceMock(overrides = {}) {
 }
 
 describe("booking service", () => {
-	it("creates a pending booking and marks an available slot taken", async () => {
+	it("creates a confirmed booking and marks an available slot taken", async () => {
 		const bookingRepository = createRepository()
 		const notificationService = createNotificationServiceMock()
 		const service = createBookingService({
@@ -214,7 +214,7 @@ describe("booking service", () => {
 
 		expect(result.waitlisted).toBe(false)
 		expect(result.booking).toMatchObject({
-			status: BOOKING_STATUSES.PENDING,
+			status: BOOKING_STATUSES.CONFIRMED,
 			slot_id: baseSlot.id,
 			user_id: customerUser.id,
 			email: customerUser.email,
@@ -228,19 +228,19 @@ describe("booking service", () => {
 		})
 		expect(bookingRepository.createBooking).toHaveBeenCalledWith(
 			expect.objectContaining({
-				status: BOOKING_STATUSES.PENDING,
+				status: BOOKING_STATUSES.CONFIRMED,
 				slot_id: baseSlot.id,
 			}),
 		)
 		expect(bookingRepository.insertStatusEvent).toHaveBeenCalledWith(
 			expect.objectContaining({
 				from_status: null,
-				to_status: BOOKING_STATUSES.PENDING,
+				to_status: BOOKING_STATUSES.CONFIRMED,
 			}),
 		)
 		expect(notificationService.queueBookingNotification).toHaveBeenCalledWith(
 			result.booking,
-			NOTIFICATION_TEMPLATE_KEYS.BOOKING_CREATED,
+			NOTIFICATION_TEMPLATE_KEYS.BOOKING_CONFIRMED,
 			expect.objectContaining({ slot: result.slot }),
 		)
 	})
@@ -490,7 +490,9 @@ describe("booking service", () => {
 		expect(bookingRepository.releaseSlot).toHaveBeenCalledWith(expiredSlot.id, {
 			release_reason: BOOKING_STATUSES.NO_SHOW,
 		})
-		expect(notificationService.queueWaitlistSlotOpenNotifications).toHaveBeenCalled()
+		expect(
+			notificationService.queueWaitlistSlotOpenNotifications,
+		).toHaveBeenCalled()
 	})
 
 	it("does not release taken slots before the two-hour expired-slot grace window", async () => {

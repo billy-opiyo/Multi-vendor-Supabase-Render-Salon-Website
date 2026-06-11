@@ -7,7 +7,11 @@ const bookingController = require("./booking.controller")
 const router = express.Router()
 
 router.post("/api/v1/bookings", requireAuth, bookingController.createBooking)
-router.get("/api/v1/bookings/me", requireAuth, bookingController.listOwnBookings)
+router.get(
+	"/api/v1/bookings/me",
+	requireAuth,
+	bookingController.listOwnBookings,
+)
 router.post(
 	"/api/v1/bookings/:bookingId/cancel",
 	requireAuth,
@@ -52,6 +56,12 @@ router.get(
 	requireAuth,
 	requireAdmin("canManageBookings"),
 	bookingController.listAdminWaitlist,
+)
+router.post(
+	"/api/v1/admin/waitlist/:waitlistId/status",
+	requireAuth,
+	requireAdmin("canManageBookings"),
+	bookingController.updateAdminWaitlistStatus,
 )
 router.post(
 	"/api/v1/admin/waitlist/:waitlistId/move-to-confirmed",

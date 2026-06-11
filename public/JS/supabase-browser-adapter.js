@@ -712,7 +712,11 @@
 		return Number(remoteCollections[collectionName]?.pollIntervalMs || 3000)
 	}
 
-	async function refreshRemoteCollection(collectionName, constraints = []) {
+	async function refreshRemoteCollection(
+		collectionName,
+		constraints = [],
+		options = {},
+	) {
 		const config = remoteCollections[collectionName]
 		if (!config || !window.RenderApi?.isConfigured?.()) return false
 		try {
@@ -744,6 +748,9 @@
 						: { ...row, id }
 			})
 			persistState()
+			if (options.notify === true) {
+				notifyCollectionListeners(collectionName)
+			}
 			return true
 		} catch (error) {
 			console.warn(
@@ -752,6 +759,21 @@
 			)
 			return false
 		}
+	}
+
+	async function refreshCollectionsAfterRemoteMutation(collectionNames = []) {
+		const names = [...new Set(collectionNames.filter(Boolean))]
+		await Promise.all(
+			names.map(async (collectionName) => {
+				if (remoteCollections[collectionName]) {
+					const refreshed = await refreshRemoteCollection(collectionName, [], {
+						notify: true,
+					})
+					if (refreshed) return
+				}
+				notifyCollectionListeners(collectionName)
+			}),
+		)
 	}
 
 	async function refreshRemoteDocument(collectionName, id) {
@@ -1080,13 +1102,17 @@
 
 	async function syncRemoteMutation(collectionName, id, data, operation) {
 		if (!window.RenderApi?.isConfigured?.()) return
+		const refreshAfterMutation = (...collectionNames) =>
+			refreshCollectionsAfterRemoteMutation(
+				collectionNames.length ? collectionNames : [collectionName],
+			)
 		try {
 			if (
 				collectionName === "bookings" &&
 				operation !== "delete" &&
-				data?.service
+				data?.service &&
+				!isUuid(id)
 			) {
-				if (isUuid(id)) return
 				const result = window.RenderApi.dataOrPayload(
 					await window.RenderApi.request("/api/v1/bookings", {
 						method: "POST",
@@ -1095,10 +1121,14 @@
 				)
 				const booking = result?.booking || result?.data?.booking || result
 				if (booking?.id) {
-					ensureCollection(collectionName)[id] = mapBooking(booking)
+					const collection = ensureCollection(collectionName)
+					const remoteId = String(booking.id || id)
+					if (remoteId !== id) delete collection[id]
+					collection[remoteId] = mapBooking(booking)
 					persistState()
 					notifyCollectionListeners(collectionName)
 				}
+				await refreshAfterMutation("bookings", "waitlist")
 				return
 			}
 
@@ -1127,6 +1157,7 @@
 						},
 					)
 				}
+				await refreshAfterMutation("contactMessages")
 				return
 			}
 
@@ -1147,6 +1178,7 @@
 						body: mapAdminReviewUpdatePayload(data),
 					})
 				}
+				await refreshAfterMutation("reviews")
 				return
 			}
 
@@ -1166,6 +1198,7 @@
 						},
 					)
 				}
+				await refreshAfterMutation("galleryStyles")
 				return
 			}
 
@@ -1185,6 +1218,24 @@
 						},
 					)
 				}
+				await refreshAfterMutation("blogs")
+				return
+			}
+
+			if (collectionName === "waitlist" && isAdminPage()) {
+				if (operation !== "delete" && isUuid(id) && data?.status) {
+					await window.RenderApi.request(
+						`/api/v1/admin/waitlist/${id}/status`,
+						{
+							method: "POST",
+							body: {
+								status: data.status,
+								metadata: data.metadata || {},
+							},
+						},
+					)
+				}
+				await refreshAfterMutation("waitlist", "bookings")
 				return
 			}
 
@@ -1198,6 +1249,7 @@
 					method: "POST",
 					body: { status: data.status },
 				})
+				await refreshAfterMutation("bookings", "waitlist")
 			}
 		} catch (error) {
 			console.warn(
