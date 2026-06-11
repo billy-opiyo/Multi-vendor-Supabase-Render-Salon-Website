@@ -36,6 +36,22 @@ function throwRepositoryError(error, statusCode, code, message) {
 	throw new ApiError(statusCode, code, message, getSupabaseErrorDetails(error))
 }
 
+function buildBookingNotificationUpdate(values = {}) {
+	const allowedKeys = [
+		"status",
+		"provider_message_id",
+		"sent_at",
+		"failed_at",
+		"failure_reason",
+	]
+	return allowedKeys.reduce((update, key) => {
+		if (Object.prototype.hasOwnProperty.call(values, key)) {
+			update[key] = values[key]
+		}
+		return update
+	}, {})
+}
+
 function createNotificationRepository(supabase) {
 	async function findOutboxByIdempotencyKey(idempotencyKey) {
 		const { data, error } = await supabase
@@ -93,6 +109,30 @@ function createNotificationRepository(supabase) {
 				500,
 				"booking_notification_write_failed",
 				"Unable to write booking notification record.",
+			)
+
+			return data
+		},
+
+		async updateBookingNotificationByOutboxId(outboxId, values = {}) {
+			const safeOutboxId = String(outboxId || "").trim()
+			const updateValues = buildBookingNotificationUpdate(values)
+			if (!safeOutboxId || !Object.keys(updateValues).length) {
+				return null
+			}
+
+			const { data, error } = await supabase
+				.from("booking_notifications")
+				.update(updateValues)
+				.contains("metadata", { outbox_id: safeOutboxId })
+				.select(BOOKING_NOTIFICATION_SELECT)
+				.maybeSingle()
+
+			throwRepositoryError(
+				error,
+				500,
+				"booking_notification_update_failed",
+				"Unable to update booking notification delivery status.",
 			)
 
 			return data
@@ -380,6 +420,41 @@ function createNotificationRepository(supabase) {
 				500,
 				"waitlist_notification_mark_failed",
 				"Unable to mark waitlist entry as notified.",
+			)
+
+			return data
+		},
+
+		async markWaitlistNotificationFailed(
+			waitlistId,
+			{ reason, metadata } = {},
+		) {
+			const updateValues = {
+				status: "notification_failed",
+				notification_channel: null,
+				notified_at: null,
+			}
+
+			if (metadata && typeof metadata === "object" && !Array.isArray(metadata)) {
+				updateValues.metadata = {
+					...metadata,
+					last_notification_failure_reason:
+						reason || "waitlist_notification_failed",
+				}
+			}
+
+			const { data, error } = await supabase
+				.from("waitlist_entries")
+				.update(updateValues)
+				.eq("id", waitlistId)
+				.select(WAITLIST_SELECT)
+				.single()
+
+			throwRepositoryError(
+				error,
+				500,
+				"waitlist_notification_failed_mark_failed",
+				"Unable to mark waitlist entry notification as failed.",
 			)
 
 			return data

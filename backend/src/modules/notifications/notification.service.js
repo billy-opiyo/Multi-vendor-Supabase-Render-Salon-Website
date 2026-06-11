@@ -62,6 +62,34 @@ function calculateRetryAt({ attempts, baseRetrySeconds }) {
 	return new Date(Date.now() + delaySeconds * 1000).toISOString()
 }
 
+function normalizeWaitlistStatus(status = "") {
+	const raw = String(status || "")
+		.trim()
+		.toLowerCase()
+	if (raw === "waitlist" || raw === "waitlisted") return "waiting"
+	return raw
+}
+
+function isWaitingWaitlistEntry(waitlistEntry = {}) {
+	return normalizeWaitlistStatus(waitlistEntry.status) === "waiting"
+}
+
+function getOutboxNotificationStatusUpdate(row = {}, status, values = {}) {
+	return pickDefined({
+		status,
+		provider_message_id: values.provider_message_id,
+		sent_at:
+			status === "sent"
+				? values.sent_at || row.sent_at || new Date().toISOString()
+				: undefined,
+		failed_at:
+			status === "failed" || status === "skipped" || status === "retrying"
+				? values.failed_at || row.failed_at || new Date().toISOString()
+				: undefined,
+		failure_reason: values.failure_reason,
+	})
+}
+
 function createNoopNotificationService() {
 	const result = async () => ({ queued: [], skipped: true, noop: true })
 
@@ -146,6 +174,59 @@ function createNotificationService({
 				idempotency_key: row.idempotency_key,
 			},
 		})
+	}
+
+	async function mirrorBookingNotificationStatus(row, status, values = {}) {
+		if (typeof repository.updateBookingNotificationByOutboxId !== "function") {
+			return null
+		}
+
+		try {
+			return await repository.updateBookingNotificationByOutboxId(
+				row.id,
+				getOutboxNotificationStatusUpdate(row, status, values),
+			)
+		} catch (error) {
+			console.warn("Unable to mirror booking notification status:", error)
+			return null
+		}
+	}
+
+	async function markOutboxSent(row, values = {}) {
+		const result = await repository.markSent(row.id, values)
+		await mirrorBookingNotificationStatus(row, "sent", {
+			provider_message_id:
+				result.provider_message_id || values.provider_message_id,
+			sent_at: result.sent_at,
+		})
+		return result
+	}
+
+	async function markOutboxSkipped(row, reason, values = {}) {
+		const result = await repository.markSkipped(row.id, reason, values)
+		await mirrorBookingNotificationStatus(row, "skipped", {
+			failed_at: result.failed_at,
+			failure_reason: result.failure_reason || reason,
+		})
+		return result
+	}
+
+	async function markOutboxRetrying(row, values = {}) {
+		const result = await repository.markRetrying(row.id, values)
+		await mirrorBookingNotificationStatus(row, "retrying", {
+			failed_at: result.failed_at,
+			failure_reason: result.failure_reason || values.reason,
+		})
+		return result
+	}
+
+	async function markOutboxFailed(row, values = {}) {
+		const result = await repository.markFailed(row.id, values)
+		await mirrorBookingNotificationStatus(row, "failed", {
+			failed_at: result.failed_at,
+			failure_reason: result.failure_reason || values.reason,
+		})
+		return result
 	}
 
 	async function queueBookingNotification(booking, templateKey, options = {}) {
@@ -292,8 +373,15 @@ function createNotificationService({
 		options = {},
 	) {
 		const queued = []
+		const notified = []
+		const failed = []
+		const skippedWaitlistEntries = []
+		const waitingQueue = (Array.isArray(queue) ? queue : []).filter(
+			isWaitingWaitlistEntry,
+		)
+		const targets = options.notifyAll === true ? waitingQueue : waitingQueue.slice(0, 1)
 
-		for (const waitlistEntry of queue) {
+		for (const waitlistEntry of targets) {
 			const booking = waitlistEntry.booking_id
 				? await repository.findBookingById(waitlistEntry.booking_id)
 				: null
@@ -310,10 +398,36 @@ function createNotificationService({
 				},
 			)
 
-			queued.push(...result.queued)
+			if (result.queued.length) {
+				queued.push(...result.queued)
+				notified.push(waitlistEntry.id)
+			} else {
+				const reason = result.reason || "waitlist_slot_open_notification_not_queued"
+				skippedWaitlistEntries.push({ waitlistId: waitlistEntry.id, reason })
+
+				if (typeof repository.markWaitlistNotificationFailed === "function") {
+					const failedEntry = await repository.markWaitlistNotificationFailed(
+						waitlistEntry.id,
+						{
+							reason,
+							metadata: waitlistEntry.metadata,
+						},
+					)
+					failed.push(failedEntry)
+				}
+			}
 		}
 
-		return { queued, skipped: queued.length === 0 }
+		return {
+			queued,
+			notified,
+			failed,
+			skippedWaitlistEntries,
+			targeted: targets.length,
+			skippedWaitlistCount: Math.max(0, waitingQueue.length - targets.length),
+			skipped: queued.length === 0,
+			reason: targets.length ? undefined : "no_waiting_waitlist_entries",
+		}
 	}
 
 	async function queueContactMessageNotification(contactMessage, options = {}) {
@@ -360,8 +474,8 @@ function createNotificationService({
 		const rendered = renderTemplate(row.template_key, row.payload || {})
 
 		if (row.channel === NOTIFICATION_CHANNELS.INTERNAL) {
-			return repository.markSkipped(
-				row.id,
+			return markOutboxSkipped(
+				row,
 				"internal_notification_no_provider",
 				{
 					metadata: { ...(row.metadata || {}), rendered },
@@ -371,7 +485,7 @@ function createNotificationService({
 
 		if (row.channel === NOTIFICATION_CHANNELS.EMAIL) {
 			if (!row.recipient_email) {
-				return repository.markSkipped(row.id, "missing_recipient_email")
+				return markOutboxSkipped(row, "missing_recipient_email")
 			}
 
 			const result = await resend.sendEmail({
@@ -382,13 +496,13 @@ function createNotificationService({
 			})
 
 			if (result.skipped) {
-				return repository.markSkipped(
-					row.id,
+				return markOutboxSkipped(
+					row,
 					result.reason || "email_provider_skipped",
 				)
 			}
 
-			return repository.markSent(row.id, {
+			return markOutboxSent(row, {
 				provider_message_id: result.providerMessageId,
 				metadata: { ...(row.metadata || {}), provider: result.provider },
 			})
@@ -396,7 +510,7 @@ function createNotificationService({
 
 		if (row.channel === NOTIFICATION_CHANNELS.WHATSAPP) {
 			if (!row.recipient_phone) {
-				return repository.markSkipped(row.id, "missing_recipient_phone")
+				return markOutboxSkipped(row, "missing_recipient_phone")
 			}
 
 			const result = await whatsapp.sendTextMessage({
@@ -405,19 +519,19 @@ function createNotificationService({
 			})
 
 			if (result.skipped) {
-				return repository.markSkipped(
-					row.id,
+				return markOutboxSkipped(
+					row,
 					result.reason || "whatsapp_provider_skipped",
 				)
 			}
 
-			return repository.markSent(row.id, {
+			return markOutboxSent(row, {
 				provider_message_id: result.providerMessageId,
 				metadata: { ...(row.metadata || {}), provider: result.provider },
 			})
 		}
 
-		return repository.markSkipped(row.id, `unsupported_channel:${row.channel}`)
+		return markOutboxSkipped(row, `unsupported_channel:${row.channel}`)
 	}
 
 	async function handleDeliveryFailure(row, error, options) {
@@ -428,10 +542,10 @@ function createNotificationService({
 		}
 
 		if (row.attempts >= options.maxAttempts) {
-			return repository.markFailed(row.id, { reason, metadata })
+			return markOutboxFailed(row, { reason, metadata })
 		}
 
-		return repository.markRetrying(row.id, {
+		return markOutboxRetrying(row, {
 			availableAt: calculateRetryAt({
 				attempts: row.attempts,
 				baseRetrySeconds: options.baseRetrySeconds,

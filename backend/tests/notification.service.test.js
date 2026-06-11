@@ -42,21 +42,29 @@ function createRepository(overrides = {}) {
 		markSent: vi.fn(async (id, values = {}) => ({
 			id,
 			status: NOTIFICATION_STATUSES.SENT,
+			sent_at: "2026-07-01T01:00:00.000Z",
 			...values,
 		})),
 		markSkipped: vi.fn(async (id, reason) => ({
 			id,
 			status: NOTIFICATION_STATUSES.SKIPPED,
+			failed_at: "2026-07-01T01:00:00.000Z",
 			failure_reason: reason,
 		})),
 		markRetrying: vi.fn(async (id, values = {}) => ({
 			id,
 			status: NOTIFICATION_STATUSES.RETRYING,
+			failed_at: "2026-07-01T01:00:00.000Z",
 			...values,
 		})),
 		markFailed: vi.fn(async (id, values = {}) => ({
 			id,
 			status: NOTIFICATION_STATUSES.FAILED,
+			failed_at: "2026-07-01T01:00:00.000Z",
+			...values,
+		})),
+		updateBookingNotificationByOutboxId: vi.fn(async (id, values = {}) => ({
+			id: `booking-notification-for-${id}`,
 			...values,
 		})),
 		listUpcomingReminderCandidates: vi.fn().mockResolvedValue([]),
@@ -65,6 +73,11 @@ function createRepository(overrides = {}) {
 		findBookingById: vi.fn().mockResolvedValue(booking),
 		markWaitlistNotified: vi.fn(async (id, values = {}) => ({
 			id,
+			...values,
+		})),
+		markWaitlistNotificationFailed: vi.fn(async (id, values = {}) => ({
+			id,
+			status: "notification_failed",
 			...values,
 		})),
 		...overrides,
@@ -165,6 +178,16 @@ describe("notification service", () => {
 				provider_message_id: "email-message-1",
 			}),
 		)
+		expect(
+			notificationRepository.updateBookingNotificationByOutboxId,
+		).toHaveBeenCalledWith(
+			pendingRow.id,
+			expect.objectContaining({
+				status: "sent",
+				provider_message_id: "email-message-1",
+				sent_at: expect.any(String),
+			}),
+		)
 	})
 
 	it("marks provider failures as retrying before max attempts", async () => {
@@ -231,6 +254,112 @@ describe("notification service", () => {
 			pendingRow.id,
 			expect.objectContaining({ reason: "provider down" }),
 		)
+		expect(
+			notificationRepository.updateBookingNotificationByOutboxId,
+		).toHaveBeenCalledWith(
+			pendingRow.id,
+			expect.objectContaining({
+				status: "failed",
+				failure_reason: "provider down",
+			}),
+		)
+	})
+
+	it("notifies only the first waiting waitlist entry for a released slot", async () => {
+		const slot = {
+			id: "00000000-0000-4000-8000-000000000301",
+			released_at: "2026-07-01T01:00:00.000Z",
+		}
+		const firstWaiting = {
+			id: "00000000-0000-4000-8000-000000000501",
+			booking_id: booking.id,
+			status: "waiting",
+			metadata: {},
+		}
+		const secondWaiting = {
+			id: "00000000-0000-4000-8000-000000000502",
+			booking_id: booking.id,
+			status: "waiting",
+			metadata: {},
+		}
+		const alreadyNotified = {
+			id: "00000000-0000-4000-8000-000000000503",
+			booking_id: booking.id,
+			status: "notified",
+			metadata: {},
+		}
+		const notificationRepository = createRepository()
+		const service = createNotificationService({
+			notificationRepository,
+			...createProviders(),
+		})
+
+		const result = await service.queueWaitlistSlotOpenNotifications(
+			[firstWaiting, secondWaiting, alreadyNotified],
+			slot,
+		)
+
+		expect(result).toMatchObject({
+			targeted: 1,
+			notified: [firstWaiting.id],
+			skippedWaitlistCount: 1,
+			skipped: false,
+		})
+		expect(notificationRepository.findBookingById).toHaveBeenCalledTimes(1)
+		expect(notificationRepository.enqueueOutbox).toHaveBeenCalledTimes(2)
+		expect(notificationRepository.enqueueOutbox).toHaveBeenCalledWith(
+			expect.objectContaining({
+				aggregate_type: "waitlist",
+				aggregate_id: firstWaiting.id,
+				template_key: NOTIFICATION_TEMPLATE_KEYS.WAITLIST_SLOT_OPEN,
+			}),
+		)
+		expect(notificationRepository.enqueueOutbox).not.toHaveBeenCalledWith(
+			expect.objectContaining({ aggregate_id: secondWaiting.id }),
+		)
+		expect(notificationRepository.markWaitlistNotified).toHaveBeenCalledWith(
+			firstWaiting.id,
+			{ channel: NOTIFICATION_CHANNELS.EMAIL },
+		)
+	})
+
+	it("marks the targeted waitlist entry notification_failed when slot-open notification has no recipient", async () => {
+		const slot = {
+			id: "00000000-0000-4000-8000-000000000301",
+			released_at: "2026-07-01T01:00:00.000Z",
+		}
+		const waitlistEntry = {
+			id: "00000000-0000-4000-8000-000000000501",
+			booking_id: null,
+			status: "waiting",
+			metadata: { source: "test" },
+		}
+		const notificationRepository = createRepository()
+		const service = createNotificationService({
+			notificationRepository,
+			...createProviders(),
+		})
+
+		const result = await service.queueWaitlistSlotOpenNotifications(
+			[waitlistEntry],
+			slot,
+		)
+
+		expect(result).toMatchObject({
+			targeted: 1,
+			queued: [],
+			skipped: true,
+			skippedWaitlistEntries: [
+				{ waitlistId: waitlistEntry.id, reason: "missing_waitlist_recipient" },
+			],
+		})
+		expect(notificationRepository.enqueueOutbox).not.toHaveBeenCalled()
+		expect(
+			notificationRepository.markWaitlistNotificationFailed,
+		).toHaveBeenCalledWith(waitlistEntry.id, {
+			reason: "missing_waitlist_recipient",
+			metadata: waitlistEntry.metadata,
+		})
 	})
 
 	it("queues upcoming reminders using the Firebase two-hour lead and fifteen-minute window", async () => {
