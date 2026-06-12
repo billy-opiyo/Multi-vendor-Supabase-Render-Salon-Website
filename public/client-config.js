@@ -1727,7 +1727,7 @@
 			footerLogoHtml: businessLogoTextHtml,
 			logoSrc: brandLogoImages[0],
 			logoImages: brandLogoImages,
-			favicon: "IMG/Royal Braids logo.png",
+			favicon: "/IMG/Royal braid logo favicon.png?v=20260612",
 			logoAlt: `${businessName} rotating logo`,
 			heroImage: "IMG/1000_F_595420115_RZi6MAsq90qVRMfFz37ZKBianocAltUu.jpg",
 			heroImageAlt: "African Hair Braiding Salon",
@@ -1790,7 +1790,7 @@
 		media: {
 			logoSrc: brandLogoImages[0],
 			logoImages: brandLogoImages,
-			favicon: "IMG/Royal Braids logo.png",
+			favicon: "/IMG/Royal braid logo favicon.png?v=20260612",
 			heroImage: "IMG/1000_F_595420115_RZi6MAsq90qVRMfFz37ZKBianocAltUu.jpg",
 			galleryFolder: cloudinaryGalleryFolder,
 		},

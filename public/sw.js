@@ -1,5 +1,5 @@
 /* Royal Braids static asset service worker. */
-const CACHE_VERSION = "royal-braids-static-v20260531-simple-logo-rotation"
+const CACHE_VERSION = "royal-braids-static-v20260612-favicon"
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`
 
 const APP_SHELL_ASSETS = [
@@ -17,7 +17,7 @@ const APP_SHELL_ASSETS = [
 	"/IMG/logo 4.png",
 	"/IMG/logo 5.png",
 	"/IMG/logo 6.jpg",
-	"/IMG/Royal Braids logo.png",
+	"/IMG/Royal braid logo favicon.png?v=20260612",
 	"/IMG/1000_F_595420115_RZi6MAsq90qVRMfFz37ZKBianocAltUu.jpg",
 	"/IMG/4-african-knotless-braids-with-beads.webp",
 ]
