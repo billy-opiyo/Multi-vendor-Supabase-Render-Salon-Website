@@ -1,117 +1,567 @@
-Royal Braids / Salon Shop - Current Project Features
-====================================================
+Royal Braids / Salon Shop - Deep Feature Inventory
+==================================================
 
-Project Overview
-----------------
-- Production-ready Supabase + Render + Vercel salon platform for Royal Braids.
-- Public customer website for services, gallery, booking, reviews, blog, contact, authentication, and client dashboard.
-- Admin console for operational management of bookings, schedule, waitlist, content, reviews, messages, services, security, and admin users.
-- Supabase-backed data/auth workflows using Postgres, Auth, RLS, migrations, and approved realtime/browser reads.
-- Render backend API for privileged service-role workflows, booking transactions, notification jobs, Cloudinary signing, and admin operations.
-- Vercel static frontend deployment for public and admin pages.
-- Legacy Firebase production code/config/rules/functions are archived under legacy/firebase-production-archive/.
+This file catalogs the current feature set for the Royal Braids salon platform.
+It is intentionally broader than a marketing list: it explains feature purpose,
+frontend/backend ownership, operational value, and implementation boundaries.
 
-Public Website Features
------------------------
-- Responsive Royal Braids homepage.
-- Branded public splash screen with progress bar and accessible reveal behavior.
-- Premium salon branding with hero section, rotating logo, calls to action, and salon contact/location details.
-- Dark/light mode and brand theme preset support.
-- Mobile navigation menu.
-- Smooth section navigation for Home, Gallery, Services, Booking, Dashboard, Reviews, Blog, and Contact.
-- SEO metadata, Open Graph metadata, and favicon support.
-- Very-small-screen responsive polish for narrow mobile layouts.
+Active architecture summary
+---------------------------
+- Vercel serves the static public website and admin console from public/.
+- Supabase owns Auth, Postgres data, migrations, constraints, RLS, and safe browser-facing reads.
+- Render runs the trusted Node/Express backend API for privileged workflows, service-role writes, admin authorization, booking transactions, jobs, notifications, and Cloudinary signing.
+- Cloudinary stores uploaded media when signed upload workflows are used.
+- Resend and WhatsApp Cloud API are provider integrations for notifications when real sending is enabled.
+- An external scheduler calls protected Render job endpoints with X-Job-Secret.
+- Legacy Firebase production assets are archived under legacy/firebase-production-archive/ and are not active runtime dependencies.
 
-Services and Gallery Features
------------------------------
-- JavaScript-driven service catalog.
-- Service category tabs and visibility controls.
-- Service cards include name, description, price, duration, icon, category, and category label.
-- Public gallery with Supabase/Render-backed rendering and fallback content.
-- Service-category filters, braid-specific filters, sorting controls, featured rails, before/after images, lightbox behavior, and favorites.
-- Cloudinary media integration through Render signing where required.
 
-Booking and Waitlist Features
------------------------------
-- Public appointment booking form.
-- Dynamic service and time-slot dropdowns.
-- Slot availability from Render/Supabase booking-slot data.
-- Transactional slot locking through Render to prevent double booking.
-- Booking creation in Supabase bookings and booking_slots workflows.
-- Waitlist prompt when the selected slot is no longer available.
-- Supabase waitlist_entries data model with queue position and queue size tracking.
-- Admin waitlist conversion to confirmed when slot is available.
-- Email/WhatsApp notification expectations backed by Render notification outbox.
+1. Public website and brand experience
+--------------------------------------
+Purpose:
+  Present Royal Braids as a professional, premium salon and guide visitors toward booking, gallery discovery, reviews, blog content, and contact.
 
-Client Account Features
------------------------
-- Supabase Auth integration.
-- Email/password sign-in and registration.
-- Forgot-password and password reset support.
-- Auth modal on public website.
-- Client dashboard for appointments, reviews, favorites, profile settings, preferences, login history, and security activity.
-- Booking reschedule and cancellation flows through Render.
+Capabilities:
+  - Responsive public homepage at public/index.html.
+  - Branded splash screen and reveal behavior.
+  - Premium Royal Braids visual identity with logo support.
+  - Hero section with calls to action.
+  - Smooth navigation for Home, Gallery, Services, Booking, Dashboard, Reviews, Blog, and Contact.
+  - Mobile menu for narrow screens.
+  - Dark/light mode support.
+  - Theme preset support including brand color palettes.
+  - SEO metadata and Open Graph metadata.
+  - Favicon and logo image support.
+  - Very-small-screen layout polish.
+  - Public business contact and location display.
 
-Public Content Features
------------------------
-- Approved public reviews/testimonials.
-- Auth-gated review submission with moderation.
-- Blog cards with title, excerpt, image, publish date, read time, and read-more URL.
-- Contact form backed by Render/Supabase contact message pipeline.
-- Notification outbox support for owner/business contact alerts.
+Primary files:
+  - public/index.html
+  - public/CSS/style.css
+  - public/JS/script.js
+  - public/JS/splash.js
+  - public/JS/apply-client-config.js
+  - public/client-config.js
 
-Admin Console Features
-----------------------
-- Dedicated admin page at public/admin.html.
-- Supabase Auth admin login.
-- Authorized admin access record check through Supabase admin_users.
-- Roles: super_admin and admin.
-- Permission flags: canManageAdmins, canManageBookings, canManageContent, canManageSecurity.
-- Permission-scoped tabs for bookings, waitlist, schedule, gallery, blogs, reviews, messages, services, admins, and security.
-- Booking lifecycle actions through Render.
-- Waitlist queue and conversion workflows.
-- Day/week schedule board.
-- Gallery, blog, review, contact, and service/category management.
-- Admin user delegation and audit logging.
+Ownership notes:
+  - Visual rendering belongs to public HTML/CSS/JS.
+  - Business identity and public contact values should be configured in client-config.js.
+  - Private business credentials must never be placed in public files.
 
-Security and Automation Features
---------------------------------
-- Supabase Auth identity/session model.
-- Supabase RLS for browser-facing access boundaries.
-- Render middleware for token verification and admin authorization.
-- Supabase service-role key stored only on Render.
-- Provider secrets stored only in server-side environment variables.
-- Login activity, security alerts, account change history, admin security actions, and activity timeline.
-- Render-backed incident response actions.
-- Protected scheduled-job endpoints using X-Job-Secret.
-- Jobs for outbox flushing, booking reminders, expired slot release, and waitlist slot-open notifications.
 
-Technology and Integration Features
+2. White-label/client configuration
 -----------------------------------
-- HTML, CSS, and vanilla JavaScript frontend.
-- Supabase browser adapter.
-- Render API adapter.
-- Node.js/Express Render backend.
-- Supabase Postgres/Auth/RLS/migrations.
-- Cloudinary media integration.
-- Resend email integration.
-- WhatsApp Cloud API integration.
-- Font Awesome icons and Google Fonts.
+Purpose:
+  Allow the salon brand, catalog, contact details, theme, and browser-safe integration values to be updated from one predictable file.
 
-Deployment and QA Features
---------------------------
-- Supabase migrations and RLS policies under supabase/.
-- Render Blueprint in render.yaml.
-- Vercel static frontend deployment from public/.
-- Active automated coverage includes JavaScript syntax checks, Vitest unit/architecture tests, backend tests, and Playwright E2E tests.
-- Firebase emulator/rules/functions tests are archived and not part of active validation.
-- Production readiness checklist in docs/production-signoff.md.
+Capabilities:
+  - Business name, slug, country, city, timezone, locale, and currency configuration.
+  - Business logo text and logo image array.
+  - Phone, email, WhatsApp, and contact notification display values.
+  - Public Supabase URL/anon key configuration.
+  - Public Render API base URL configuration.
+  - Cloudinary public folder naming.
+  - Theme preset and exact color override support.
+  - Service category configuration.
+  - Stylist configuration.
+  - Service and sub-service catalog configuration.
+  - Fallback content for public rendering where backend data is unavailable.
 
-Project Documentation Features
+Primary file:
+  - public/client-config.js
+
+Safe to expose:
+  - Public brand/contact information.
+  - Public Supabase anon/publishable key.
+  - Public Render API URL.
+  - Public Cloudinary folder names.
+
+Never expose:
+  - Supabase service-role key.
+  - Database passwords.
+  - Resend API key.
+  - WhatsApp access token.
+  - Cloudinary API secret.
+  - JOB_SECRET or scheduler secrets.
+
+
+3. Services catalog
+-------------------
+Purpose:
+  Let customers understand what the salon offers and move from service discovery into booking.
+
+Capabilities:
+  - JavaScript-rendered service catalog.
+  - Service categories and category tabs.
+  - Service cards with name, description, price, duration, icon, category, and label.
+  - Sub-services/service variants such as package sizes, add-ons, or detailed options.
+  - Stylists list for booking selection.
+  - Visibility controls through backend/admin-managed data where enabled.
+  - Config fallback catalog in client-config.js.
+  - Admin service/category/variant/stylist management through protected Render endpoints.
+
+Primary files/modules:
+  - public/client-config.js
+  - public/JS/script.js
+  - public/JS/admin.js
+  - backend/src/modules/content/
+  - Supabase tables such as service_categories, services, service_variants, stylists
+
+
+4. Gallery and style discovery
 ------------------------------
-- Main README at public/README.md.
-- Deployment notes in docs/deployment.md.
-- CLI deployment guide in docs/cli-deployment-commands.md.
-- Firebase-to-Supabase mapping in docs/firebase-to-supabase-mapping.md.
-- Migration/cleanup notes in docs/migration-cleanup.md.
-- Legacy Firebase archive notes in legacy/firebase-production-archive/README.md.
+Purpose:
+  Help customers choose looks and build trust in salon quality.
+
+Capabilities:
+  - Public gallery rendering.
+  - Category and braid/style filters.
+  - Sorting controls where implemented.
+  - Featured/trending rails.
+  - Before/after image support.
+  - Lightbox behavior.
+  - Favorites support in client dashboard context.
+  - Cloudinary media integration through Render-signed uploads.
+  - Admin gallery creation, update, deletion, visibility, and metadata management.
+
+Primary files/modules:
+  - public/JS/script.js
+  - public/JS/admin.js
+  - public/JS/render-api-adapter.js
+  - backend/src/modules/content/
+  - Supabase table gallery_items
+
+
+5. Customer authentication
+--------------------------
+Purpose:
+  Provide secure customer identity for bookings, dashboard access, reviews, and account/security history.
+
+Capabilities:
+  - Supabase Auth integration.
+  - Email/password sign-in and registration.
+  - Forgot-password and password reset support.
+  - Auth modal on public site.
+  - Access token forwarding to Render for protected actions.
+  - Session-aware dashboard state.
+  - Login activity recording through security endpoints.
+  - Security restriction handling for blocked/forced-logout/password-reset-required states.
+
+Primary files/modules:
+  - public/JS/supabase-browser-adapter.js
+  - public/JS/render-api-adapter.js
+  - public/JS/script.js
+  - backend/src/modules/auth/
+  - backend/src/modules/security/
+  - Supabase Auth
+
+
+6. Online booking
+-----------------
+Purpose:
+  Allow customers to request appointments online while protecting the salon from double booking.
+
+Capabilities:
+  - Public appointment booking form.
+  - Service, date, time, stylist, notes, and optional image/reference flow where supported.
+  - Dynamic time-slot dropdowns.
+  - Slot availability from Render/Supabase booking-slot data.
+  - Auth-protected booking creation.
+  - Render-side input validation.
+  - Transactional slot locking.
+  - Booking row creation in Supabase.
+  - Notification outbox side effects for booking events.
+  - Activity timeline side effects.
+  - Customer dashboard appointment visibility.
+
+Primary endpoints:
+  - GET  /api/v1/booking-slots
+  - POST /api/v1/bookings
+  - GET  /api/v1/bookings/me
+
+Primary files/modules:
+  - public/JS/script.js
+  - public/JS/render-api-adapter.js
+  - backend/src/modules/bookings/
+  - Supabase tables bookings and booking_slots
+
+
+7. Waitlist management
+----------------------
+Purpose:
+  Capture customer demand when preferred appointment slots are unavailable.
+
+Capabilities:
+  - Waitlist fallback when selected slot is unavailable.
+  - Supabase waitlist_entries data model.
+  - Queue position and queue size tracking.
+  - Queue lookup by booking ID or waitlist ID.
+  - Admin waitlist listing.
+  - Admin waitlist status updates.
+  - Admin move-to-confirmed workflow with slot availability re-check.
+  - Waitlist slot-open notification support.
+
+Primary endpoints:
+  - GET  /api/v1/bookings/:bookingId/waitlist-queue
+  - GET  /api/v1/waitlist/:waitlistId/queue
+  - GET  /api/v1/admin/waitlist
+  - POST /api/v1/admin/waitlist/:waitlistId/status
+  - POST /api/v1/admin/waitlist/:waitlistId/move-to-confirmed
+
+Primary files/modules:
+  - public/JS/script.js
+  - public/JS/admin.js
+  - backend/src/modules/bookings/
+  - Supabase table waitlist_entries
+
+
+8. Client dashboard
+-------------------
+Purpose:
+  Give customers a self-service area for appointment and account management.
+
+Capabilities:
+  - Appointment list/history.
+  - Booking status visibility.
+  - Cancellation flow through Render.
+  - Reschedule flow through Render.
+  - Favorites view where supported.
+  - Customer profile settings.
+  - Preferences display/update where supported.
+  - Review submission access.
+  - Login history/security activity.
+  - Account security change logging.
+
+Primary endpoints:
+  - GET   /api/v1/bookings/me
+  - POST  /api/v1/bookings/:bookingId/cancel
+  - POST  /api/v1/bookings/:bookingId/reschedule
+  - POST  /api/v1/profiles/sync
+  - GET   /api/v1/profiles/me
+  - PATCH /api/v1/profiles/me
+  - POST  /api/v1/account/security-change
+
+
+9. Reviews/testimonials
+-----------------------
+Purpose:
+  Build trust with moderated customer feedback.
+
+Capabilities:
+  - Approved public reviews/testimonials display.
+  - Auth-gated review submission.
+  - Review moderation in admin console.
+  - Approve/reject/feature/reply/edit/delete capabilities where enabled.
+  - Public pages show approved reviews only.
+
+Primary endpoints:
+  - GET  /api/v1/reviews
+  - POST /api/v1/reviews
+  - GET  /api/v1/admin/reviews
+  - POST /api/v1/admin/reviews/:reviewId/moderate
+  - PATCH /api/v1/admin/reviews/:reviewId
+  - DELETE /api/v1/admin/reviews/:reviewId
+
+
+10. Blog/content publishing
+---------------------------
+Purpose:
+  Support salon education, style advice, announcements, and SEO content.
+
+Capabilities:
+  - Blog cards with title, excerpt, image, publish date, read time, and read-more URL.
+  - Public blog listing.
+  - Public individual blog lookup by slug where enabled.
+  - Admin blog create/update/delete.
+  - Published/draft controls.
+
+Primary endpoints:
+  - GET  /api/v1/blog-posts
+  - GET  /api/v1/blog-posts/:slug
+  - GET  /api/v1/admin/blog-posts
+  - POST /api/v1/admin/blog-posts
+  - PATCH /api/v1/admin/blog-posts/:postId
+  - DELETE /api/v1/admin/blog-posts/:postId
+
+
+11. Contact messages
+--------------------
+Purpose:
+  Capture customer questions, appointment inquiries, partnership messages, and general contact requests.
+
+Capabilities:
+  - Public contact form.
+  - Render/Supabase contact message pipeline.
+  - Admin message listing.
+  - Message statuses such as new, read, and resolved.
+  - Contact message deletion for spam/cleanup where permitted.
+  - Notification outbox support for owner/business alerts.
+
+Primary endpoints:
+  - POST /api/v1/contact-messages
+  - GET  /api/v1/admin/contact-messages
+  - POST /api/v1/admin/contact-messages/:messageId/status
+  - DELETE /api/v1/admin/contact-messages/:messageId
+
+
+12. Admin console access and authorization
+------------------------------------------
+Purpose:
+  Protect staff tools and scope each admin to appropriate responsibilities.
+
+Capabilities:
+  - Dedicated admin page at public/admin.html.
+  - Supabase Auth admin login.
+  - Active admin_users row check.
+  - Roles: super_admin and admin.
+  - Permission flags: canManageAdmins, canManageBookings, canManageContent, canManageSecurity.
+  - Permission-scoped tabs and actions.
+  - Backend authorization on protected endpoints.
+  - Admin audit logging for sensitive changes.
+
+Primary endpoints:
+  - GET   /api/v1/admin/users/me
+  - GET   /api/v1/admin/users
+  - POST  /api/v1/admin/users
+  - PATCH /api/v1/admin/users/:adminUserId
+
+
+13. Admin booking operations
+----------------------------
+Purpose:
+  Give staff controlled tools to manage appointment lifecycle.
+
+Capabilities:
+  - Booking list and filters.
+  - Status counters and operational summaries.
+  - Booking detail inspection.
+  - Confirm, complete, cancel, no-show, or other status changes where implemented.
+  - Release-slot workflow.
+  - Waitlist-aware updates.
+  - Notification/activity/audit side effects.
+
+Primary endpoints:
+  - GET  /api/v1/admin/bookings
+  - POST /api/v1/admin/bookings/:bookingId/status
+  - POST /api/v1/admin/bookings/:bookingId/release-slot
+
+
+14. Admin schedule view
+-----------------------
+Purpose:
+  Provide day/week operational visibility from booking data.
+
+Capabilities:
+  - Day schedule view.
+  - Week schedule view.
+  - Booking cards/items by date/time.
+  - Status-based presentation.
+  - Booking detail panel from schedule item.
+  - Lifecycle actions through booking workflows where available.
+
+Ownership notes:
+  - Schedule is a projection of bookings.
+  - There is no separate schedule source of truth.
+  - Booking records and slot locks remain authoritative.
+
+
+15. Admin content management
+----------------------------
+Purpose:
+  Let authorized staff keep the public website fresh without code changes.
+
+Capabilities:
+  - Site settings/public content management where enabled.
+  - Service category management.
+  - Service management.
+  - Service variant/sub-service management.
+  - Stylist management.
+  - Gallery management.
+  - Blog management.
+  - Review moderation.
+  - Contact message handling.
+  - Cloudinary signed upload support.
+
+Primary module:
+  - backend/src/modules/content/
+
+
+16. Security monitoring and response
+------------------------------------
+Purpose:
+  Provide visibility and response controls for account, admin, and operational security.
+
+Capabilities:
+  - Login activity recording.
+  - Account security change logging.
+  - Admin security dashboard.
+  - Security alerts list/update.
+  - Account change history.
+  - Admin security actions list.
+  - User restriction endpoint.
+  - Security restriction handling in browser adapter.
+  - Activity timeline for operational visibility.
+
+Primary endpoints:
+  - POST  /api/v1/security/login-activity
+  - POST  /api/v1/account/security-change
+  - GET   /api/v1/admin/security/login-activities
+  - GET   /api/v1/admin/security/alerts
+  - PATCH /api/v1/admin/security/alerts/:alertId
+  - GET   /api/v1/admin/security/account-change-history
+  - GET   /api/v1/admin/security/actions
+  - POST  /api/v1/admin/security/users/:userId/restrict
+  - GET   /api/v1/admin/security/dashboard
+  - GET   /api/v1/admin/activity-timeline
+
+
+17. Notification automation
+---------------------------
+Purpose:
+  Convert important events into durable notification intents and send them through providers when enabled.
+
+Capabilities:
+  - Notification outbox data model.
+  - Email notification integration through Resend.
+  - WhatsApp notification integration through WhatsApp Cloud API.
+  - Dry-run support to test workflows without real sending.
+  - Booking confirmation/cancellation/reschedule notification expectations.
+  - Upcoming booking reminders.
+  - Waitlist slot-open notifications.
+  - Admin notification flush controls where enabled.
+
+Primary endpoints/jobs:
+  - POST /api/v1/admin/notifications/outbox/flush
+  - POST /api/v1/admin/notifications/reminders/upcoming
+  - POST /api/v1/jobs/flushNotificationOutbox/run
+  - POST /api/v1/jobs/sendUpcomingBookingReminders/run
+  - POST /api/v1/jobs/syncWaitlistSlotOpenNotifications/run
+
+
+18. Scheduled jobs
+------------------
+Purpose:
+  Run backend maintenance and notification workflows on a schedule outside the browser.
+
+Capabilities:
+  - Protected job endpoint pattern: POST /api/v1/jobs/:jobName/run.
+  - X-Job-Secret header requirement.
+  - Expired booking slot release.
+  - Upcoming booking reminders.
+  - Waitlist slot-open notification sync.
+  - Notification outbox flushing.
+
+Security notes:
+  - Job secret must remain server/scheduler-side.
+  - Never place job secrets in public/client-config.js.
+  - Scheduler failures should be investigated in Render logs.
+
+
+19. Media/upload integration
+----------------------------
+Purpose:
+  Support image-based gallery, blog, and service content without exposing Cloudinary secrets.
+
+Capabilities:
+  - Public image assets under public/IMG/.
+  - Cloudinary signed upload workflow through Render.
+  - Gallery/blog/admin content image fields.
+  - Public Cloudinary folder configuration.
+  - Admin content permission check before signing upload.
+
+Primary endpoint:
+  - POST /api/v1/uploads/cloudinary/sign
+
+
+20. Deployment and hosting features
+-----------------------------------
+Purpose:
+  Support production deployment on the selected stack.
+
+Capabilities:
+  - Vercel static frontend deployment from public/.
+  - Render backend deployment using render.yaml.
+  - Supabase migrations under supabase/migrations/.
+  - Supabase policies and storage notes under supabase/.
+  - Public config separated from server env vars.
+  - Deployment docs in docs/deployment.md.
+  - CLI deployment guide in docs/cli-deployment-commands.md.
+  - Production readiness checklist in docs/production-signoff.md.
+  - Scheduled jobs documentation in docs/scheduled-jobs.md.
+
+
+21. Testing and QA features
+---------------------------
+Purpose:
+  Validate frontend syntax, architecture assumptions, backend behavior, and browser flows.
+
+Capabilities:
+  - JavaScript syntax checks through npm run check:js.
+  - Root unit/architecture tests through npm run test:unit.
+  - Backend Vitest tests through npm run test:backend.
+  - Phase validation through npm run test:phase9.
+  - Playwright E2E tests through npm run test:e2e.
+  - Full validation through npm test.
+  - Static test server script for local frontend testing.
+  - Image optimization scripts.
+
+Primary scripts:
+  - npm run check:js
+  - npm run test:unit
+  - npm run test:backend
+  - npm run test:e2e
+  - npm run test:phase9
+  - npm test
+
+
+22. Documentation features
+--------------------------
+Purpose:
+  Preserve project knowledge for developers, operators, and stakeholders.
+
+Current public-folder docs:
+  - public/README.md: public frontend architecture and project guide.
+  - public/ADMIN_CONSOLE_USER_MANUAL.md: admin operator manual.
+  - public/BOOKING_WAITLIST_SCHEDULE_LOGIC.md: booking/waitlist/schedule lifecycle guide.
+  - public/AD_VIDEO_SCRIPT.md: demo and ad video recording guide.
+  - public/FEATURES.txt: this feature inventory.
+
+Related root/docs documentation:
+  - docs/deployment.md
+  - docs/cli-deployment-commands.md
+  - docs/firebase-to-supabase-mapping.md
+  - docs/migration-cleanup.md
+  - docs/parity-fixes-handoff.md
+  - docs/production-signoff.md
+  - docs/scheduled-jobs.md
+  - supabase/README.md
+
+
+23. Safety and architecture constraints
+---------------------------------------
+Must remain true unless the architecture is intentionally changed:
+  - public/ remains static and secret-free.
+  - Browser code uses only public Supabase anon config and public Render API URL.
+  - Supabase service-role key is stored only on Render.
+  - RLS protects browser-facing data access.
+  - Render verifies Supabase access tokens.
+  - Render owns privileged booking, waitlist, admin, notification, upload, and security workflows.
+  - Admin permissions are centralized through admin_users.
+  - Provider secrets are stored only in server-side environment variables.
+  - Firebase archive remains historical reference only.
+  - Operational records should prefer status/audit changes over destructive deletion.
+
+
+24. High-value future enhancements
+----------------------------------
+Potential improvements to consider after the current production baseline:
+  - More granular service/stylist availability rules.
+  - Deposit/payment integration.
+  - SMS provider support.
+  - Richer admin analytics/reporting.
+  - Full blog article editor if only cards/external links are currently used.
+  - Customer loyalty or referral features.
+  - Multi-branch salon scheduling.
+  - More advanced notification preference center.
+  - Automated image moderation/compression pipeline.
+  - Accessibility audit and WCAG checklist expansion.

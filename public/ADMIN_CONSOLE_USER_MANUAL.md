@@ -1,167 +1,636 @@
 # Royal Braids Admin Console User Manual
 
-Comprehensive operating guide for `public/admin.html` on the current **Supabase + Render + Vercel** production architecture.
+Comprehensive operator guide for `public/admin.html`, the private staff/admin dashboard for the current **Supabase + Render + Vercel** Royal Braids platform.
 
-The old Firebase admin implementation is archived under `legacy/firebase-production-archive/` and is not the active admin runtime.
+The old Firebase admin implementation is archived under `legacy/firebase-production-archive/` and is not the active runtime. All production admin operations should use the Supabase-backed admin console and Render backend endpoints.
 
-## 1. Purpose of the Admin Console
+---
 
-The Admin Console is the private operations dashboard for salon staff and administrators. It manages bookings, waitlists, schedule views, gallery styles, blog posts, review moderation, contact messages, service visibility, admin access, and security monitoring.
+## 1. What the Admin Console is for
 
-Main files:
+The Admin Console is the operational control center for the salon. It allows authorized staff to manage the day-to-day business without editing code or touching the database directly.
+
+Primary responsibilities:
+
+1. Monitor and manage bookings.
+2. Convert or close waitlist entries.
+3. View the daily/weekly appointment schedule.
+4. Manage gallery styles and uploaded media.
+5. Publish and edit blog content.
+6. Moderate reviews/testimonials.
+7. Read and resolve contact messages.
+8. Manage service categories, services, variants, and stylists.
+9. Delegate admin access safely.
+10. Review security activity, alerts, restrictions, and audit trails.
+
+Main implementation files:
 
 ```txt
 public/admin.html
 public/JS/admin.js
 public/JS/supabase-browser-adapter.js
 public/JS/render-api-adapter.js
+backend/src/modules/admins/
+backend/src/modules/bookings/
+backend/src/modules/content/
+backend/src/modules/security/
+backend/src/modules/activityTimeline/
 ```
 
-## 2. Access, login, logout, and permissions
+---
 
-To enter the console, an account must meet all conditions:
+## 2. Access requirements
 
-1. The account exists in Supabase Auth.
-2. The account signs in with an approved Supabase Auth method.
-3. A matching active row exists in `public.admin_users`.
-4. The admin row has a valid role: `super_admin` or `admin`.
-5. The admin has permission flags needed for the selected tab.
+An account can enter the Admin Console only when all of the following are true:
 
-| Permission / role | Tabs enabled |
+1. The person has a valid Supabase Auth user account.
+2. The person signs in successfully using the configured auth method.
+3. A matching row exists in `public.admin_users`.
+4. The admin row is active.
+5. The row has a valid role: `super_admin` or `admin`.
+6. The row has the required permission flag for the tab/action being used.
+7. Render backend verification succeeds for protected API calls.
+
+If any condition fails, the UI may hide tabs or show an access-denied message. Render still enforces the final authorization decision on every protected mutation.
+
+---
+
+## 3. Roles and permission matrix
+
+| Role / permission | Operational meaning | Typical tabs/actions |
+| --- | --- | --- |
+| `super_admin` | Full system authority. Can recover access, manage all tabs, delegate admins, and handle security. | All tabs and actions. |
+| `admin` | Staff/admin role. Actual access depends on permission flags. | Only allowed tabs. |
+| `canManageBookings` | Can manage appointment operations. | Bookings, Waitlist, Schedule, booking lifecycle actions. |
+| `canManageContent` | Can manage website-facing content. | Gallery, Blogs, Reviews, Messages, Services, site settings/content. |
+| `canManageSecurity` | Can inspect and respond to security activity. | Security dashboards, alerts, restrictions, account-change logs. |
+| `canManageAdmins` | Can create/update admin access where backend policy allows. | Admins tab. |
+
+Best-practice role design:
+
+- Keep at least one `super_admin` recovery account.
+- Give ordinary staff only the flags they need.
+- Avoid shared admin accounts; audit logs are less useful when multiple people share one login.
+- Remove or deactivate admin access immediately when staff leave.
+
+---
+
+## 4. Login, logout, and session behavior
+
+### Logging in
+
+1. Open `public/admin.html` on the deployed site.
+2. Enter the Supabase Auth credentials for an approved admin account.
+3. Wait for the console to verify the session and admin row.
+4. Confirm that the visible tabs match the expected role/permissions.
+
+### Logging out
+
+Use the logout/sign-out control in the admin UI. This clears the Supabase browser session and returns the console to a signed-out state.
+
+### Session refresh guidance
+
+If permissions were changed while an admin was already signed in:
+
+- Refresh the page.
+- If the old permission state remains, sign out and sign back in.
+- If the problem continues, verify the `admin_users` row and Render logs.
+
+### Security restriction responses
+
+The backend may return security restriction codes such as:
+
+```txt
+account_temporarily_blocked
+force_logout_required
+password_reset_required
+```
+
+The browser Render adapter stores a temporary notice and can trigger UI/session handling. Follow on-screen instructions, then review the Security tab if you have permission.
+
+---
+
+## 5. General console layout
+
+The admin console is organized into permission-scoped tabs. The exact visual design may evolve, but the concepts are stable.
+
+Common UI patterns:
+
+- **Counters/summary cards** show totals such as pending bookings, active waitlist entries, unread messages, alerts, or content counts.
+- **Filters** narrow records by status, date, service, keyword, or visibility.
+- **Tables/cards** show operational records.
+- **Detail panels/modals** show full customer/content/security information.
+- **Action buttons** call Render endpoints for mutations.
+- **Confirmation prompts** appear before destructive or lifecycle-changing actions.
+- **Toast/status messages** show success or failure.
+
+Do not assume that hiding a button is sufficient security. The backend must authorize every protected action.
+
+---
+
+## 6. Bookings tab
+
+### Purpose
+
+The Bookings tab is used to manage appointment records from creation through completion, cancellation, or other terminal status.
+
+### Common booking statuses
+
+| Status | Meaning | Operator notes |
+| --- | --- | --- |
+| `pending` | Booking exists but is not yet confirmed. | Review details, confirm if acceptable, or cancel/release if invalid. |
+| `confirmed` | Appointment is accepted and active. | Customer should be expected at the scheduled time. |
+| `completed` | Appointment was fulfilled. | Usually terminal. Used for reporting/history. |
+| `cancelled` | Booking was cancelled. | Slot should be released or already released depending on workflow. |
+| `waitlisted` | Booking is tied to an active waitlist entry. | Manage from Waitlist tab when slot opens. |
+| `expired` | Pending slot/booking expired automatically. | Usually produced by scheduled job or expiry workflow. |
+| `no_show` | Customer missed a confirmed appointment. | Use according to salon policy. |
+
+### Typical booking workflow: confirm a pending booking
+
+1. Open **Bookings**.
+2. Filter to `pending` if needed.
+3. Open the booking details.
+4. Verify customer name, contact, service, stylist, date, time, notes, and any uploaded reference image.
+5. Click the confirm/status action.
+6. Wait for success confirmation.
+7. Confirm that the booking status changed and any activity/notification records were created.
+
+### Typical workflow: cancel and release a slot
+
+1. Open the booking record.
+2. Confirm cancellation reason according to salon policy.
+3. Use the cancel/release-slot action rather than manually editing the database.
+4. Render updates the booking status, releases the slot, may update waitlist state, and writes activity/audit/notification records.
+5. Check Waitlist if a newly opened slot should be offered to a waiting customer.
+
+### Typical workflow: mark completed
+
+1. Confirm the service was delivered.
+2. Mark booking as `completed`.
+3. Review whether a follow-up review request or notification outbox row is expected.
+
+### Operational cautions
+
+- Do not manually change booking statuses in Supabase unless doing controlled recovery.
+- Avoid deleting bookings; status changes preserve history and auditability.
+- Always verify date/time/stylist before confirming a booking.
+- If a booking action fails, do not repeatedly click. Check the error and reload the record.
+
+---
+
+## 7. Waitlist tab
+
+### Purpose
+
+The Waitlist tab tracks customers who want a slot that is currently unavailable. It helps staff preserve demand and fill cancellations.
+
+Active data table: `public.waitlist_entries`.
+
+### Key waitlist concepts
+
+| Concept | Meaning |
 | --- | --- |
-| `canManageBookings` | Bookings, Waitlist, Schedule |
-| `canManageContent` | Gallery, Blogs, Reviews, Messages, Services |
-| `canManageSecurity` | Security |
-| `canManageAdmins` or `super_admin` | Admins |
-| `super_admin` | All tabs |
+| Preferred slot | Date/time/stylist/service combination the customer wants. |
+| Queue position | Customer's order within an equivalent preferred slot group. |
+| Queue size | Total active waiting entries in that group. |
+| Active waiting status | Entry still occupies a queue position. |
+| Converted status | Entry was moved into a confirmed booking. |
+| Cancelled/closed status | Entry no longer occupies a queue position. |
 
-Admin permission checks are enforced by both the frontend UI and Render backend middleware.
+### Typical workflow: review waitlist demand
 
-## 3. General console behavior
+1. Open **Waitlist**.
+2. Filter by active/waiting status.
+3. Sort by preferred date/time or queue position.
+4. Review customer contact details and notes.
+5. Check whether related slots have opened.
 
-- Admin tabs are shown only when the signed-in admin has access.
-- Data is loaded through Supabase/RLS-approved reads and Render admin endpoints.
-- Privileged mutations go through Render; the browser never uses the Supabase service-role key.
-- Success/error messages appear near the relevant section.
-- Destructive actions require confirmation.
-- After role or permission changes, sign out/in or refresh the session if access appears stale.
+### Typical workflow: move waitlisted booking to confirmed
 
-## 4. Bookings tab
+1. Confirm that the preferred slot is available.
+2. Select the waitlist entry.
+3. Use **Move to Confirmed**.
+4. Render re-checks availability before changing state.
+5. Confirm the booking status becomes `confirmed` and the waitlist entry no longer occupies active queue space.
 
-Use the Bookings tab to monitor and manage appointment records.
+### Typical workflow: close/cancel waitlist entry
+
+1. Confirm customer no longer wants the appointment or the request is invalid.
+2. Update waitlist status through the UI.
+3. Verify queue positions are recalculated for remaining active entries.
+
+### Cautions
+
+- Never promise a slot before the backend confirms conversion.
+- Queue position is meaningful only among equivalent preferred slot groups.
+- If queue positions look wrong, reload first, then check backend logs and waitlist status values.
+
+---
+
+## 8. Schedule tab
+
+### Purpose
+
+The Schedule tab gives staff a calendar-like view of appointment demand. It is generated from booking data; it does not own a separate schedule table.
+
+### What staff can do
+
+- View day or week appointment layout.
+- Inspect booking detail from a calendar item.
+- Identify gaps, conflicts, and high-demand periods.
+- Navigate dates.
+- Run safe lifecycle actions through booking detail controls where available.
+
+### Operational notes
+
+- If a booking is missing from schedule, check its status and appointment date/time.
+- If duplicate bookings appear, check slot locks and booking status history.
+- Treat Schedule as a view over booking records, not a separate source of truth.
+
+---
+
+## 9. Gallery tab
+
+### Purpose
+
+Gallery content helps customers discover styles and builds trust before booking. Admins can manage images, categories, tags, and featured/trending flags.
+
+### Common fields
+
+- Title/name.
+- Description.
+- Service/category association.
+- Image URL or Cloudinary asset metadata.
+- Before/after images where supported.
+- Tags or braid/style filters.
+- Featured/trending flags.
+- Visibility/published state.
+- Sort order.
+
+### Typical workflow: add a gallery item
+
+1. Prepare demo-safe or approved salon image.
+2. Upload image through the UI.
+3. Render signs the Cloudinary upload request.
+4. Fill in title, service/category, tags, and visibility.
+5. Save item.
+6. Open the public site and verify it appears under the correct filters.
+
+### Media best practices
+
+- Avoid uploading customer images without permission.
+- Use optimized image sizes where possible.
+- Use meaningful alt/title text for accessibility and SEO.
+- Remove private metadata before uploading production images.
+
+---
+
+## 10. Blogs tab
+
+### Purpose
+
+Blogs support salon education, SEO, promotions, style guidance, and announcements.
+
+### Common fields
+
+- Title.
+- Slug or read-more URL.
+- Excerpt/summary.
+- Body/content if full post support is enabled.
+- Cover image.
+- Publish date.
+- Read time.
+- Published/draft state.
+- Tags/categories.
+
+### Publishing checklist
+
+1. Confirm title and excerpt are clear.
+2. Confirm image is approved and displays correctly.
+3. Confirm published state and publish date.
+4. Preview public blog card/page.
+5. Check mobile layout.
+6. Avoid publishing placeholder content in production.
+
+---
+
+## 11. Reviews tab
+
+### Purpose
+
+Reviews are customer testimonials that may require moderation before becoming public.
+
+### Common actions
+
+- Approve review.
+- Reject review.
+- Edit obvious formatting issues where policy allows.
+- Feature/unfeature review.
+- Reply to review.
+- Delete only when necessary.
+
+### Moderation guidance
+
+- Approve authentic, appropriate reviews.
+- Reject spam, abusive content, private information, or irrelevant submissions.
+- Do not alter customer sentiment in a misleading way.
+- Prefer status moderation over hard deletion for auditability.
+
+Public pages should show approved reviews only.
+
+---
+
+## 12. Messages tab
+
+### Purpose
+
+Messages are contact form submissions from customers or prospects.
 
 Common statuses:
 
 ```txt
-pending
-confirmed
-completed
-cancelled
-waitlisted
-expired
-no_show
+new
+read
+resolved
 ```
 
-| Current status | Common actions |
-| --- | --- |
-| `pending` | Confirm, Cancel + Release Slot |
-| `confirmed` | Complete + Release Slot, Cancel + Release Slot |
-| `waitlisted` | Move to Confirmed, manage from Waitlist |
-| terminal statuses | View only |
+### Typical workflow: resolve a message
 
-Protected Render endpoints handle status updates, release-slot actions, waitlist recalculation, notification outbox rows, activity timeline records, and audit logs.
+1. Open **Messages**.
+2. Filter to `new`.
+3. Read the customer request and contact details.
+4. Follow up by phone, email, WhatsApp, or internal process.
+5. Mark as `read` or `resolved`.
+6. Delete only spam or records that should not be retained.
 
-## 5. Waitlist tab
+### Privacy caution
 
-Use the Waitlist tab for customers waiting on unavailable slots. Admins can review queue position, contact customers, update waitlist status, and move eligible waitlisted bookings to confirmed when the preferred slot is available.
+Contact messages may include personal information. Do not copy them into public tickets, screenshots, videos, or documentation.
 
-The active database table is `public.waitlist_entries`.
+---
 
-## 6. Schedule tab
+## 13. Services tab
 
-The Schedule tab is a day/week calendar view of booking data. It does not maintain a separate schedule table. Admins can navigate dates, inspect booking detail panels, and run lifecycle-safe actions from selected bookings.
+### Purpose
 
-## 7. Content tabs
+Services determine what customers can browse and book. This area may include categories, services, variants/sub-services, stylists, pricing, duration, visibility, and sort order.
 
-### Gallery
+Related tables may include:
 
-Manage public style/gallery items, Cloudinary media, before/after images, service metadata, and featured/trending flags.
+```txt
+service_categories
+services
+service_variants
+stylists
+```
 
-### Blogs
+### Service management workflow
 
-Create and maintain public salon content such as titles, excerpts, images, publish dates, read times, and published status.
+1. Create or update service category if needed.
+2. Create or update the main service.
+3. Add variants/sub-services for specific options.
+4. Assign price, duration, category, and visibility.
+5. Add stylist options where applicable.
+6. Save through the admin UI.
+7. Verify the public Services section and booking dropdowns.
 
-### Reviews
+### Best practices
 
-Moderate reviews by approving, rejecting, editing, featuring, replying, or deleting. Public pages show approved reviews only.
+- Use inactive/hidden state instead of deleting commonly referenced services.
+- Keep prices and durations consistent across service cards and variants.
+- Use sort order to control display rather than relying on database insertion order.
+- Test booking dropdowns after changing service/category identifiers.
 
-### Messages
+---
 
-Manage contact submissions by status (`new`, `read`, `resolved`), sorting, follow-up, and deletion.
+## 14. Admins tab
 
-### Services
+### Purpose
 
-Manage what customers can view and book. Active data lives in Supabase tables such as `service_categories`, `services`, `service_variants`, and `stylists`.
+The Admins tab controls staff access. Admin changes are sensitive and should be limited to `super_admin` or users with `canManageAdmins` where backend policy permits.
 
-## 8. Admins tab
-
-Use Admins to manage staff access. Admin mutations are written through Render and recorded in `admin_audit_logs`.
-
-Typical fields:
+### Typical admin fields
 
 | Field | Meaning |
 | --- | --- |
-| Admin user | Supabase Auth user/admin identity |
-| Role | `super_admin` or `admin` |
-| Active | Whether the admin can access the console |
-| Permissions | Booking/content/security/admin management flags |
+| User ID/Auth identity | Supabase Auth user linked to admin access. |
+| Display name | Human-readable staff/admin name. |
+| Role | `super_admin` or `admin`. |
+| Active | Whether the admin can currently access the console. |
+| Permissions | Booking/content/security/admin management flags. |
 
-## 9. Security tab
+### Workflow: add an admin
 
-Use Security to monitor login activity, risk flags, security alerts, account changes, admin security actions, activity timelines, and session/online-user views where supported.
+1. Confirm the staff member has or will receive a Supabase Auth account.
+2. Open **Admins**.
+3. Create the admin row with the correct user identity.
+4. Assign the least-privilege role and permission flags.
+5. Save.
+6. Ask the staff member to sign in and verify visible tabs.
+7. Review audit log entry if available.
 
-Authorized admins can trigger response actions such as temporary block, force password reset, force sign-out/session refresh guidance, or clearing restrictions. Render writes durable state to Supabase security tables.
+### Workflow: remove admin access
 
-## 10. System dependencies
+1. Open the admin user record.
+2. Set `active` to false or remove permission flags according to policy.
+3. Save.
+4. If urgent, use security actions to force logout/restriction where supported.
+5. Review audit/security logs.
 
-Active dependencies:
+### Cautions
 
-- Supabase Auth and Postgres/RLS.
-- Render backend API.
-- Vercel static frontend hosting.
-- Cloudinary for media.
-- Resend and WhatsApp Cloud API for notifications when enabled.
-- External scheduler for protected jobs.
+- Do not create multiple shared admin accounts.
+- Do not make every staff member `super_admin`.
+- Keep a written recovery plan for super admin loss.
 
-Do not troubleshoot active production issues by deploying Firebase Functions or Firestore rules; those are historical artifacts in `legacy/firebase-production-archive/`.
+---
 
-## 11. Troubleshooting
+## 15. Security tab
+
+### Purpose
+
+The Security tab helps authorized admins monitor and respond to suspicious or sensitive account activity.
+
+Data may include:
+
+- Login activities.
+- Security alerts.
+- Account change history.
+- Admin security actions.
+- Activity timeline events.
+- User restriction state.
+
+### Common security actions
+
+- Mark alert reviewed/resolved.
+- Restrict or temporarily block a user.
+- Trigger password reset guidance.
+- Force logout/session refresh guidance.
+- Clear restrictions after review.
+
+### Incident response workflow
+
+1. Open **Security**.
+2. Review alert severity, affected user, timestamp, and context.
+3. Compare with login activity and account change history.
+4. Choose a measured action: monitor, contact user, restrict account, or escalate.
+5. Add notes if supported.
+6. Mark the alert status appropriately.
+7. Re-check related activity after the action.
+
+### Security best practices
+
+- Avoid over-sharing screenshots containing emails, phone numbers, IPs, or tokens.
+- Use restrictions carefully; accidental blocks create customer support issues.
+- Review admin audit logs after permission changes.
+- Rotate credentials/provider secrets if compromise is suspected.
+
+---
+
+## 16. Notification and automation awareness
+
+The Admin Console may create actions that result in notification outbox rows. Actual sending is handled by Render jobs/providers.
+
+Notification-related concepts:
+
+- `notification_outbox` stores pending/sent/failed notification intents.
+- Resend handles email when enabled.
+- WhatsApp Cloud API handles WhatsApp when enabled.
+- `NOTIFICATION_DRY_RUN` may prevent real sends while still recording intents.
+- External scheduler calls protected job endpoints for flushing and reminders.
+
+If a customer says they did not receive a message, check outbox status, provider configuration, dry-run state, and Render job logs.
+
+---
+
+## 17. Recommended daily operating cadence
+
+Opening checklist:
+
+- Check today's Schedule.
+- Review pending bookings.
+- Review active waitlist entries for soonest dates.
+- Check new contact messages.
+- Check high-severity security alerts.
+
+During the day:
+
+- Confirm or cancel pending bookings promptly.
+- Keep statuses accurate as appointments are completed or missed.
+- Monitor cancellations and offer open slots to waitlisted customers.
+
+Closing checklist:
+
+- Mark completed/no-show appointments.
+- Resolve messages handled during the day.
+- Review failed notification/job indicators if visible.
+- Check admin/security alerts before signing out.
+
+Weekly checklist:
+
+- Review services/prices for accuracy.
+- Add or refresh gallery/blog content.
+- Moderate pending reviews.
+- Review admin users and permissions.
+- Confirm scheduler jobs are running.
+
+---
+
+## 18. Troubleshooting playbook
 
 ### Cannot log in
 
-Check Supabase Auth account existence, password/provider credentials, `public.admin_users` row, role/permissions, Render health, and `public/client-config.js` Supabase/Render URLs.
+Check:
 
-### Data does not load
+1. Supabase Auth account exists.
+2. Credentials/provider are correct.
+3. Browser is using the correct Supabase project config.
+4. `admin_users` row exists and is active.
+5. Role/permission flags are correct.
+6. Render `/health` works.
+7. Browser network tab shows successful auth/admin calls.
 
-Check Render `/health`, browser network calls, Supabase RLS policies, admin permissions, and whether the relevant Supabase table has records.
+### Admin tabs are missing
 
-### Booking or waitlist action fails
+Check:
 
-Check record IDs, slot availability, `canManageBookings` permission, and Render logs for validation or transaction errors.
+1. Permission flags in `admin_users`.
+2. Whether user is `super_admin`.
+3. Session refresh/sign-out/sign-in.
+4. Render admin profile response.
+5. Frontend console errors.
+
+### Booking action fails
+
+Check:
+
+1. `canManageBookings` permission.
+2. Booking ID exists.
+3. Target status is allowed.
+4. Slot is available if confirming/rescheduling/converting.
+5. Render logs for validation or transaction error.
+
+### Waitlist conversion fails
+
+Check:
+
+1. Waitlist entry is active/eligible.
+2. Preferred slot is still open.
+3. Related booking still exists.
+4. Queue status has not changed in another session.
+
+### Content does not appear publicly
+
+Check:
+
+1. Published/active/approved state.
+2. Category/service visibility.
+3. Public endpoint response.
+4. Browser cache/service worker.
+5. Image URL is reachable.
 
 ### Upload fails
 
-Check Render Cloudinary env vars, admin content permission, file size/type, and Cloudinary account quota/credentials.
+Check:
 
-### Notifications do not send
+1. `canManageContent` permission.
+2. Cloudinary env vars on Render.
+3. File type/size.
+4. Cloudinary quota or folder restrictions.
+5. Network request to `/api/v1/uploads/cloudinary/sign`.
 
-Check `NOTIFICATION_DRY_RUN`, Resend/WhatsApp env vars, `notification_outbox` rows, scheduler calls, and Render job logs.
+### Security action fails
 
-## 12. Best practices
+Check:
 
-- Use the admin UI and Render endpoints instead of direct database edits for operational workflows.
-- Keep a `super_admin` recovery account available.
+1. `canManageSecurity` permission.
+2. Target user ID is correct.
+3. Restriction payload is valid.
+4. Render logs and security module validation.
+
+---
+
+## 19. What not to do from the Admin Console
+
+- Do not use production customer data in demos or videos.
+- Do not manually edit booking, slot, waitlist, admin, or security records unless performing controlled recovery.
 - Do not share admin accounts.
-- Review audit/security logs after privileged changes.
-- Keep server secrets out of browser/Vercel public config.
-- Run `npm run test:phase9` before shipping important changes.
+- Do not give broad permissions when narrow permissions are enough.
+- Do not expose service-role keys or provider secrets in browser config.
+- Do not deploy or troubleshoot production by using archived Firebase functions/rules.
+
+---
+
+## 20. Escalation guidance
+
+Escalate to a developer or system administrator when:
+
+- Render `/health` is down.
+- Supabase Auth is unavailable.
+- Booking transactions repeatedly fail.
+- Slot conflicts/double booking are suspected.
+- Notification jobs fail repeatedly.
+- Admin access is lost for all super admins.
+- Security alerts indicate possible credential compromise.
+- Database recovery or manual correction is required.
